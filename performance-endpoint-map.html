@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YouTube Clone K6 Endpoint Map</title>
+  <style>
+    :root { color-scheme: light; --bg:#f7f7f5; --paper:#fff; --ink:#171717; --muted:#626262; --line:#deded9; --accent:#c21b1b; --soft:#f1f1ee; --dark:#191919; --light:#f4f4f1; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 56px; }
+    header { margin-bottom: 26px; }
+    h1 { margin: 0 0 8px; font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.05; letter-spacing: 0; }
+    h2 { margin: 0; font-size: 1.35rem; }
+    h3 { margin: 0; font-size: 1.02rem; }
+    p { margin: 0 0 10px; color: var(--muted); }
+    code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 12px; }
+    code { display: inline-block; max-width: 100%; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; line-height: 1.7; overflow-wrap: anywhere; white-space: normal; }
+    pre { margin: 6px 0 0; padding: 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--dark); color: var(--light); border-radius: 7px; }
+    .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 18px 0 26px; }
+    .metric, .note, .project { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
+    .metric { padding: 16px; }
+    .metric strong { display: block; font-size: 1.35rem; }
+    .note { margin: 0 0 16px; padding: 14px 16px; border-left: 4px solid var(--accent); }
+    .project { margin: 18px 0; padding: 16px; }
+    .project-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+    .pill { display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: 4px 9px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .action { border-top: 1px solid var(--line); padding: 14px 0 2px; }
+    .action:first-of-type { border-top: 0; }
+    .action-title { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+    .action-title span { color: var(--muted); font-size: 12px; }
+    .endpoint { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; gap: 10px; padding: 11px 0; border-top: 1px solid var(--line); }
+    .endpoint:first-of-type { border-top: 0; }
+    .cell-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .url { display: block; width: 100%; }
+    .method { display: inline-block; min-width: 44px; text-align: center; border-radius: 5px; padding: 1px 5px; margin-right: 5px; background: #e7f0ff; color: #174ea6; font-weight: 800; font-size: 11px; }
+    .post { background: #e7f6ea; color: #137333; }
+    .none { color: var(--muted); background: #fafaf8; border: 1px dashed var(--line); border-radius: 7px; padding: 8px 10px; }
+    details.schema { margin-top: 8px; border: 1px solid var(--line); border-radius: 7px; background: #fafaf8; overflow: hidden; }
+    details.schema summary { cursor: pointer; padding: 8px 10px; font-size: 12px; font-weight: 800; color: var(--ink); }
+    details.schema pre { margin: 0; border-radius: 0; }
+    .schema-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+    .queries { margin-top: 7px; }
+    .queries code { display: block; margin-top: 4px; }
+    @media (max-width: 900px) { .summary { grid-template-columns: 1fr; } .project-head { display: block; } .endpoint { grid-template-columns: 1fr; gap: 8px; } .pill { margin-top: 8px; } }
+    @media (max-width: 900px) { .schema-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>K6 Endpoint Map</h1>
+    <p>Mapped from the React clients and FastAPI routes in this workspace. Each endpoint below is a separate request row with its own trigger condition, headers, payload, and response notes.</p>
+    <div class="summary">
+      <div class="metric"><strong>3</strong><span>clone projects</span></div>
+      <div class="metric"><strong>8</strong><span>target user actions</span></div>
+      <div class="metric"><strong>2026-05-15</strong><span>document updated from local code</span></div>
+    </div>
+  </header>
+
+  <section class="note">
+    <h3>Header rules</h3>
+    <p><code>Accept: application/json</code> is enough for JSON reads. JSON writes need <code>Content-Type: application/json</code>. Multipart writes need <code>Content-Type: multipart/form-data</code>; in K6, let the runtime generate the boundary. Browser image/video requests can send image/video <code>Accept</code> headers, and video playback may send <code>Range: bytes=0-1048575</code>. German's protected writes also need <code>Authorization: Bearer $TOKEN</code>.</p>
+  </section>
+
+  <section class="note">
+    <h3>Recommended action mix</h3>
+    <p>Main page <code>34%</code>, user page <code>5%</code>, create user <code>1%</code>, upload video <code>1%</code>, open/watch/reproduce video <code>48%</code>, scroll/load more <code>6%</code>, add comment <code>5%</code>.</p>
+  </section>
+
+  <section class="note">
+    <h3>Rate-limit scope</h3>
+    <p><strong>EquipoBraulio:</strong> no app-level rate limiter was found in the backend code. <strong>EquipoCristobalRios:</strong> SlowAPI uses the request client IP as the key, so all K6 virtual users from one EC2 instance share the same rate-limit bucket even if they use different user ids in payloads. <strong>EquipoGerman:</strong> a Redis limiter exists and keys by client IP + route + scope, not JWT user, but the inspected routes do not currently attach the limiter dependencies; if enabled later, different JWTs from the same EC2 instance would still share each route bucket.</p>
+  </section>
+
+  <section class="project">
+    <div class="project-head"><div><h2>EquipoBraulio</h2><p>Base URL through compose/Nginx: <code>http://localhost/api</code>. Direct backend paths are the same without the <code>/api</code> prefix.</p></div><span class="pill">Open API, Redis cache, Range streaming</span></div>
+
+    <div class="action"><div class="action-title"><h3>Main page opening</h3><span>initial home render</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos?offset=0&amp;limit=20</code></div><div><span class="cell-label">Triggers when</span>Home video cache loads the first page.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below
+422: invalid offset/limit</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users</code></div><div><span class="cell-label">Triggers when</span>User context initializes.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/providers</code></div><div><span class="cell-label">Triggers when</span>User context initializes in parallel with users.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/{id}/subscriptions</code></div><div><span class="cell-label">Triggers when</span>A current user id exists after localStorage restore, manual selection, or defaulting to the first loaded user.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below
+404/422: invalid user id</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{id}/thumbnail</code></div><div><span class="cell-label">Triggers when</span>Browser renders a video card that has a thumbnail URL.</div><div><span class="cell-label">Headers</span><pre>Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: image bytes
+404: thumbnail missing</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Opening user's page</h3><span>user directory render</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users</code></div><div><span class="cell-label">Triggers when</span>User page needs user rows; often already cached from user context.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/providers</code></div><div><span class="cell-label">Triggers when</span>User page/provider state needs provider list; often already cached.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/{id}/subscriptions</code></div><div><span class="cell-label">Triggers when</span>A current user exists and subscription state is refreshed.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/{id}/avatar</code></div><div><span class="cell-label">Triggers when</span>Browser renders an avatar image for a listed user.</div><div><span class="cell-label">Headers</span><pre>Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: image bytes
+404: user/avatar missing</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Creating a user</h3><span>submit create-user form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost/api/users</code></div><div><span class="cell-label">Triggers when</span>Create user form is submitted.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Content-Type: multipart/form-data</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "display_name": "Load User 1",
+  "provider": "local",
+  "provider_subject": "k6-user-1",
+  "email": "k6-user-1@example.test",
+  "avatar": "avatar.jpg"
+}
+
+200: JSON object, expand below
+400/409/422: bad fields or duplicate subject</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users</code></div><div><span class="cell-label">Triggers when</span>Frontend refreshes users after successful creation.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/providers</code></div><div><span class="cell-label">Triggers when</span>Frontend refreshes provider options after successful creation.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Uploading a video</h3><span>submit upload form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost/api/videos/upload</code></div><div><span class="cell-label">Triggers when</span>Upload form is submitted. <code>uploader_id</code> is added only if a current user is selected.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Content-Type: multipart/form-data</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "title": "K6 sample video",
+  "description": "Uploaded during performance test",
+  "uploader_id": 1,
+  "file": "sample.mp4",
+  "thumbnail": "thumb.jpg"
+}
+
+200: JSON object, expand below
+400/404/422: bad thumbnail, uploader, or form</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Going into video reproductor</h3><span>open watch page</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{video_id}</code></div><div><span class="cell-label">Triggers when</span>Watch page loads the selected video. This increments views in Braulio.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below
+404/422: missing or invalid video</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{video_id}/comments</code></div><div><span class="cell-label">Triggers when</span>Watch page comments query runs once.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{video_id}/recommended</code></div><div><span class="cell-label">Triggers when</span>Watch page loads recommended videos.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{id}/thumbnail</code></div><div><span class="cell-label">Triggers when</span>Browser renders recommended-video thumbnails.</div><div><span class="cell-label">Headers</span><pre>Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: image bytes
+404: thumbnail missing</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Reproducing the video</h3><span>browser starts media playback</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{video_id}/stream</code></div><div><span class="cell-label">Triggers when</span>The video element requests media bytes.</div><div><span class="cell-label">Headers</span><pre>Accept: video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8
+Range: bytes=0-1048575</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: full media bytes; K6 validates non-empty binary body and video content type
+206: partial media bytes; K6 validates non-empty binary body, video content type, and Content-Range
+404: media missing or invalid video id</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Add comment</h3><span>submit comment form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost/api/videos/{video_id}/comments</code></div><div><span class="cell-label">Triggers when</span>Comment form is submitted. Author comes from selected user display name or typed author state.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Content-Type: application/json</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "author": "K6 User",
+  "content": "Great video"
+}
+
+200: JSON object, expand below
+404/422: video missing or invalid body</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Going down the page</h3><span>home infinite scroll</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos?offset=20&amp;limit=20</code></div><div><span class="cell-label">Triggers when</span>Home IntersectionObserver sentinel reaches the viewport.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="none">Watch page scrolling does not trigger additional comment pagination in this project.</div>
+    </div>
+  </section>
+
+  <section class="project">
+    <div class="project-head"><div><h2>EquipoCristobalRios</h2><p>Default direct backend: <code>http://localhost:8000</code>; frontend dev server: <code>http://localhost:5173</code>.</p></div><span class="pill">Open API, rate-limited mutations, fixed home fetch</span></div>
+
+    <div class="action"><div class="action-title"><h3>Main page opening</h3><span>initial home render</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/videos?limit=24&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>Global video cache loads the home list once.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below
+422: invalid pagination</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users?limit=500&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>User context initializes.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users/providers</code></div><div><span class="cell-label">Triggers when</span>User context initializes in parallel with users.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users/{id}/subscriptions?limit=500&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>A current user id exists after localStorage restore, manual selection, or defaulting to the first loaded user.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below
+404/422: invalid user id</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/videos/{id}/thumbnail</code></div><div><span class="cell-label">Triggers when</span>Browser renders thumbnails for visible video cards.</div><div><span class="cell-label">Headers</span><pre>Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: image bytes
+307: redirect if MEDIA_BASE_URL is configured
+404: thumbnail missing</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Opening user's page</h3><span>user directory render</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users?limit=500&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>User page renders; often already loaded by context.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users/providers</code></div><div><span class="cell-label">Triggers when</span>Provider list is needed; often already loaded by context.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users/{id}/subscriptions?limit=500&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>A current user exists and subscription state is refreshed.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users/{id}/avatar</code></div><div><span class="cell-label">Triggers when</span>Browser renders avatar images.</div><div><span class="cell-label">Headers</span><pre>Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: image bytes
+307: redirect if MEDIA_BASE_URL is configured
+404: avatar missing</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Creating a user</h3><span>submit create-user form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost:8000/users</code></div><div><span class="cell-label">Triggers when</span>Create user form is submitted.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Content-Type: multipart/form-data</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "display_name": "Load User 1",
+  "provider": "local",
+  "provider_subject": "k6-user-1",
+  "email": "k6-user-1@example.test",
+  "avatar": "avatar.jpg"
+}
+
+200: JSON object, expand below
+400/409/413/422/429: validation, size, duplicate, or source-IP rate limit</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users?limit=500&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>Frontend refreshes users after successful creation.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/users/providers</code></div><div><span class="cell-label">Triggers when</span>Frontend refreshes provider options after successful creation.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Uploading a video</h3><span>submit upload form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost:8000/videos/upload</code></div><div><span class="cell-label">Triggers when</span>Upload form is submitted. <code>uploader_id</code> is added only if a current user is selected.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Content-Type: multipart/form-data</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "title": "K6 sample video",
+  "description": "Uploaded during performance test",
+  "category": "music",
+  "uploader_id": 1,
+  "file": "sample.mp4",
+  "thumbnail": "thumb.jpg"
+}
+
+200: JSON object, expand below
+400/404/413/422/429: bad category, uploader, size, form, or source-IP rate limit</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Going into video reproductor</h3><span>open watch page</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/videos/{video_id}</code></div><div><span class="cell-label">Triggers when</span>Watch page loads selected video. This does not increment views.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below
+404/422: missing or invalid video</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/videos/{video_id}/comments?limit=50&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>Watch page comments query runs once.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/videos/{video_id}/recommended</code></div><div><span class="cell-label">Triggers when</span>Watch page loads recommended videos.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON array, expand below</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Reproducing the video</h3><span>browser starts media playback</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost:8000/videos/{video_id}/stream</code></div><div><span class="cell-label">Triggers when</span>The video element requests media bytes.</div><div><span class="cell-label">Headers</span><pre>Accept: video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8
+Range: bytes=0-1048575</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: full media bytes; K6 validates non-empty binary body and video content type
+206: partial media bytes; K6 validates non-empty binary body, video content type, and Content-Range
+404: media missing or invalid video id</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost:8000/videos/{video_id}/views</code></div><div><span class="cell-label">Triggers when</span>First playback event increments the view count.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: updated JSON object, expand below
+404/422/429: missing video, invalid id, or source-IP rate limit</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Add comment</h3><span>submit comment form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost:8000/videos/{video_id}/comments</code></div><div><span class="cell-label">Triggers when</span>Comment form is submitted.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Content-Type: application/json</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "author": "K6 User",
+  "content": "Great video"
+}
+
+200: JSON object, expand below
+404/422/429: video missing, invalid body, or source-IP rate limit</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Going down the page</h3><span>scroll on home/watch</span></div>
+      <div class="none">No additional API call is triggered by normal Home or Watch scrolling in the current UI. For a browser-realistic K6 test, count this as think time for this project.</div>
+    </div>
+  </section>
+
+  <section class="project">
+    <div class="project-head"><div><h2>EquipoGerman</h2><p>Production via Nginx: <code>http://localhost/api</code>; dev direct backend: <code>http://localhost:8000</code>.</p></div><span class="pill">JWT writes, paginated API, Load more buttons</span></div>
+
+    <div class="action"><div class="action-title"><h3>Main page opening</h3><span>initial home render</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos?limit=20&amp;offset=0&amp;q={search_query}</code></div><div><span class="cell-label">Triggers when</span>Home infinite query loads first page; <code>q</code> appears after search input debounce.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: paginated JSON object, expand below
+422: invalid query</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users?limit=100&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>User context initializes.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: paginated JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/providers</code></div><div><span class="cell-label">Triggers when</span>User context initializes in parallel with users.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost/api/auth/token</code></div><div><span class="cell-label">Triggers when</span>A current user id exists and the frontend needs a cached JWT for protected writes.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Content-Type: application/json</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "user_id": 1
+}
+
+200: JSON object, expand below
+403: issuer disabled
+404/422: user missing or invalid id</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/{id}/subscriptions</code></div><div><span class="cell-label">Triggers when</span>A current user id exists after restore, selection, or defaulting to first loaded user.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{id}/thumbnail</code></div><div><span class="cell-label">Triggers when</span>Browser renders thumbnails for visible video cards.</div><div><span class="cell-label">Headers</span><pre>Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: image bytes via X-Accel-Redirect/Nginx
+404: thumbnail missing</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Opening user's page</h3><span>user directory render</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users?limit=20&amp;offset=0&amp;q={search_query}</code></div><div><span class="cell-label">Triggers when</span>Users page loads first page; <code>q</code> appears after search input debounce.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: paginated JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users/{id}/subscriptions</code></div><div><span class="cell-label">Triggers when</span>User context has a current user; normally already loaded before the page renders.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Creating a user</h3><span>submit create-user form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost/api/users</code></div><div><span class="cell-label">Triggers when</span>Create user form is submitted.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Content-Type: multipart/form-data</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "display_name": "Load User 1",
+  "provider": "local",
+  "provider_subject": "k6-user-1",
+  "email": "k6-user-1@example.test",
+  "avatar": "avatar.jpg"
+}
+
+200: JSON object, expand below
+400/409/413/422: validation, size, or duplicate</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/users?limit=20&amp;offset=0</code></div><div><span class="cell-label">Triggers when</span>Frontend invalidates/refetches users after successful creation.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: paginated JSON object, expand below</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Uploading a video</h3><span>submit upload form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost/api/videos/upload</code></div><div><span class="cell-label">Triggers when</span>Upload form is submitted. Uploader is resolved from the JWT subject, not a form field.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Authorization: Bearer $TOKEN
+Content-Type: multipart/form-data</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "title": "K6 sample video",
+  "description": "Uploaded during performance test",
+  "file": "sample.mp4",
+  "thumbnail": "thumb.jpg"
+}
+
+200: JSON object, expand below
+401/400/413/422: auth, bad thumbnail, size, or form error</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Going into video reproductor</h3><span>open watch page</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{video_id}</code></div><div><span class="cell-label">Triggers when</span>Watch page loads selected video. This increments views and supports <code>?perf=true</code> timing headers.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: JSON object, expand below
+404/422: missing or invalid video</pre></div></div>
+      <div class="none">The media bytes are not fetched by this React query. They are requested by the browser's <code>&lt;video&gt;</code> element in the separate "Reproducing the video" action below: <code>GET http://localhost/api/videos/{video_id}/stream</code>.</div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{video_id}/comments</code></div><div><span class="cell-label">Triggers when</span>Watch page comments query runs once.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: paginated JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{video_id}/recommended</code></div><div><span class="cell-label">Triggers when</span>Watch page loads recommended videos.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: paginated JSON object, expand below</pre></div></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{id}/thumbnail</code></div><div><span class="cell-label">Triggers when</span>Browser renders recommended-video thumbnails.</div><div><span class="cell-label">Headers</span><pre>Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: image bytes via X-Accel-Redirect/Nginx
+404: thumbnail missing</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Reproducing the video</h3><span>browser starts media playback</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos/{video_id}/stream</code></div><div><span class="cell-label">Triggers when</span>The video element requests media bytes. FastAPI returns <code>X-Accel-Redirect</code>; Nginx serves the actual file.</div><div><span class="cell-label">Headers</span><pre>Accept: video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8
+Range: bytes=0-1048575</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: full media bytes through Nginx; K6 validates non-empty binary body and video content type
+206: partial media bytes through Nginx; K6 validates non-empty binary body, video content type, and Content-Range
+404: media missing or invalid video id</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Add comment</h3><span>submit comment form</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method post">POST</span>http://localhost/api/videos/{video_id}/comments</code></div><div><span class="cell-label">Triggers when</span>Comment form is submitted. Author is resolved from the JWT user.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json
+Authorization: Bearer $TOKEN
+Content-Type: application/json</pre></div><div><span class="cell-label">Payload / response</span><pre>{
+  "content": "Great video"
+}
+
+200: JSON object, expand below
+401/404/422: auth, missing video/user, or invalid body</pre></div></div>
+    </div>
+
+    <div class="action"><div class="action-title"><h3>Going down the page</h3><span>explicit Load more buttons</span></div>
+      <div class="endpoint"><div><span class="cell-label">Endpoint</span><code class="url"><span class="method">GET</span>http://localhost/api/videos?limit=20&amp;offset=20</code></div><div><span class="cell-label">Triggers when</span>User clicks Home Load more.</div><div><span class="cell-label">Headers</span><pre>Accept: application/json</pre></div><div><span class="cell-label">Body / response</span><pre>No request body.
+200: paginated JSON object, expand below</pre></div></div>
+      <div class="none">Watch page scrolling does not auto-fetch more comments in this project. Users page has its own Load more button, but the K6 "go down page" action models Home video loading only.</div>
+    </div>
+  </section>
+
+  <section class="note">
+    <h3>K6 notes</h3>
+    <p>Tag every K6 request with <code>project</code>, <code>action</code>, and a short <code>endpoint</code> name. For grouped browser actions, issue the endpoint rows in the same order/parallelism the frontend uses where practical. Use <code>GET /health</code> before each measured run, but keep health checks outside the action distribution.</p>
+  </section>
+</main>
+<script>
+  const types = {
+    videoBase: `interface VideoResponse {
+  id: number;
+  title: string;
+  description: string;
+  created_at: string;
+  views: number;
+  stream_url: string;
+  thumbnail_url?: string | null;
+  uploader?: {
+    id: number;
+    display_name: string;
+    avatar_url?: string | null;
+  } | null;
+}`,
+    videoCristobal: `interface VideoResponse {
+  id: number;
+  title: string;
+  description: string;
+  category: string | null;
+  created_at: string;
+  views: number;
+  stream_url: string;
+  thumbnail_url?: string | null;
+  uploader?: {
+    id: number;
+    display_name: string;
+    avatar_url?: string | null;
+  } | null;
+}`,
+    user: `interface UserResponse {
+  id: number;
+  display_name: string;
+  avatar_url: string | null;
+  created_at: string;
+}`,
+    comment: `interface CommentResponse {
+  id: number;
+  video_id: number;
+  author: string;
+  content: string;
+  created_at: string;
+}`,
+    providers: `interface ProvidersResponse {
+  providers: string[];
+}`,
+    subscriptions: `interface SubscriptionsResponse {
+  creator_ids: number[];
+}`,
+    authToken: `interface AuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}`
+  };
+
+  const arrayOf = (itemType, responseName) => `${itemType}
+
+type ${responseName}ArrayResponse = ${responseName}[];`;
+
+  const paginated = (itemType, responseName) => `${itemType}
+
+interface Paginated${responseName}Response {
+  items: ${responseName}[];
+  limit: number;
+  offset: number;
+  page_count: number;
+  total_count: number;
+  next_offset: number | null;
+  count?: number | null;
+}`;
+
+  function projectFor(endpoint) {
+    const project = endpoint.closest(".project");
+    return project?.querySelector("h2")?.textContent ?? "";
+  }
+
+  function addSchema(responseCell, summary, typeDefinition) {
+    const details = document.createElement("details");
+    details.className = "schema";
+    const label = document.createElement("summary");
+    label.textContent = summary;
+    const body = document.createElement("pre");
+    body.textContent = typeDefinition;
+    details.append(label, body);
+    responseCell.appendChild(details);
+  }
+
+  function extractUrl(endpoint) {
+    const urlNode = endpoint.querySelector(".url");
+    if (!urlNode) return "";
+    const clone = urlNode.cloneNode(true);
+    clone.querySelector(".method")?.remove();
+    return clone.textContent.trim();
+  }
+
+  function describeQueryParam(name, value) {
+    if (name === "q") return "q={search_query}; optional, present only when the search box has non-empty text";
+    if (name === "offset" && value !== "0") return `offset=${value}; second page here, later pages use the next loaded offset`;
+    return `${name}=${value}`;
+  }
+
+  function addQueryList(endpoint) {
+    const rawUrl = extractUrl(endpoint);
+    if (!rawUrl.includes("?")) return;
+    const queryString = rawUrl.split("?")[1] ?? "";
+    if (!queryString) return;
+
+    const params = new URLSearchParams(queryString);
+    const items = Array.from(params.entries());
+    if (!items.length) return;
+
+    const triggerCell = endpoint.children[1];
+    if (!triggerCell || triggerCell.querySelector(".queries")) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "queries";
+    const label = document.createElement("span");
+    label.className = "cell-label";
+    label.textContent = "Query params used by product";
+    wrapper.appendChild(label);
+
+    items.forEach(([name, value]) => {
+      const item = document.createElement("code");
+      item.textContent = describeQueryParam(name, value);
+      wrapper.appendChild(item);
+    });
+
+    triggerCell.appendChild(wrapper);
+  }
+
+  document.querySelectorAll(".endpoint").forEach((endpoint) => {
+    addQueryList(endpoint);
+    const responseCell = endpoint.lastElementChild;
+    const pre = responseCell?.querySelector("pre");
+    if (!pre) return;
+
+    const project = projectFor(endpoint);
+    const url = endpoint.querySelector(".url")?.textContent ?? "";
+    const videoType = project === "EquipoCristobalRios" ? types.videoCristobal : types.videoBase;
+    const isComment = url.includes("/comments");
+    const isProvider = url.includes("/providers");
+    const isSubscription = url.includes("/subscriptions");
+    const isAuthToken = url.includes("/auth/token");
+    const isUser = url.includes("/users") && !url.includes("/providers") && !url.includes("/subscriptions") && !url.includes("/avatar");
+    const isVideo = url.includes("/videos") && !url.includes("/thumbnail") && !url.includes("/stream") && !isComment;
+    let text = pre.textContent;
+    const additions = [];
+
+    if (isVideo && text.includes("JSON array, expand below")) {
+      additions.push(["200 TypeScript response type", arrayOf(videoType, "VideoResponse")]);
+    }
+    if (isVideo && !text.includes("paginated JSON object, expand below") && (text.includes("JSON object, expand below") || text.includes("updated JSON object, expand below"))) {
+      additions.push(["200 TypeScript response type", videoType]);
+    }
+    if (isVideo && text.includes("paginated JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", paginated(videoType, "VideoResponse")]);
+    }
+    if (isUser && text.includes("JSON array, expand below")) {
+      additions.push(["200 TypeScript response type", arrayOf(types.user, "UserResponse")]);
+    }
+    if (isUser && !text.includes("paginated JSON object, expand below") && text.includes("JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", types.user]);
+    }
+    if (isUser && text.includes("paginated JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", paginated(types.user, "UserResponse")]);
+    }
+    if (isComment && text.includes("JSON array, expand below")) {
+      additions.push(["200 TypeScript response type", arrayOf(types.comment, "CommentResponse")]);
+    }
+    if (isComment && !text.includes("paginated JSON object, expand below") && text.includes("JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", types.comment]);
+    }
+    if (isComment && text.includes("paginated JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", paginated(types.comment, "CommentResponse")]);
+    }
+    if (!isVideo && !isUser && !isComment && text.includes("paginated JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", paginated(types.user, "UserResponse")]);
+    }
+    if (isProvider && text.includes("JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", types.providers]);
+    }
+    if (isSubscription && text.includes("JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", types.subscriptions]);
+    }
+    if (isAuthToken && text.includes("JSON object, expand below")) {
+      additions.push(["200 TypeScript response type", types.authToken]);
+    }
+
+    pre.textContent = text;
+    additions.forEach(([summary, typeDefinition]) => addSchema(responseCell, summary, typeDefinition));
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,507 @@
+import http from "k6/http";
+import { check, sleep } from "k6";
+import checker from "./utils.js";
+
+const BASE_URL = "http://localhost/api";
+const PROJECT = "Braulio";
+const STREAM_CHUNK_SECONDS = 5;
+const STREAM_RANGE_WINDOW_BYTES = 1024 * 1024;
+
+const VIDEO_POOL = [
+    { id: 1, filename: "one-minute.mp4", durationSeconds: 60, weight: 45, contentType: "video/mp4", data: open("../videos/one-minute.mp4", "b") },
+    { id: 2, filename: "three-minute-a.mp4", durationSeconds: 180, weight: 18, contentType: "video/mp4", data: open("../videos/three-minute-a.mp4", "b") },
+    { id: 3, filename: "three-minute-b.mp4", durationSeconds: 180, weight: 18, contentType: "video/mp4", data: open("../videos/three-minute-b.mp4", "b") },
+    { id: 4, filename: "ten-minute-a.mp4", durationSeconds: 600, weight: 8, contentType: "video/mp4", data: open("../videos/ten-minute-a.mp4", "b") },
+    { id: 5, filename: "ten-minute-b.mp4", durationSeconds: 600, weight: 8, contentType: "video/mp4", data: open("../videos/ten-minute-b.mp4", "b") },
+    { id: 6, filename: "forty-minute.mp4", durationSeconds: 2400, weight: 3, contentType: "video/mp4", data: open("../videos/forty-minute.mp4", "b") },
+];
+const DURATION_BUCKETS = [
+    { durationSeconds: 60, weight: 45 },
+    { durationSeconds: 180, weight: 36 },
+    { durationSeconds: 600, weight: 16 },
+    { durationSeconds: 2400, weight: 3 },
+];
+const VIDEO_IDS_BY_DURATION = { 60: [], 180: [], 600: [], 2400: [] };
+
+const GENERATED_FRAME_THUMBNAIL = open("../videos/frame-thumbnail.jpg", "b");
+
+function url(path) {
+    return `${BASE_URL}${path}`;
+}
+
+function requestParams(action, endpoint, extra = {}) {
+    return {
+        ...extra,
+        tags: {
+            project: PROJECT,
+            action,
+            endpoint,
+            ...(extra.tags || {}),
+        },
+    };
+}
+
+function jsonParams(action, endpoint) {
+    return requestParams(action, endpoint, {
+        headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+        },
+    });
+}
+
+function multipartParams(action, endpoint) {
+    return requestParams(action, endpoint, {
+        headers: {
+            Accept: "application/json",
+        },
+    });
+}
+
+function mediaParams(action, endpoint, range) {
+    return requestParams(action, endpoint, {
+        headers: {
+            Accept: "video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8",
+            ...(range ? { Range: range } : {}),
+        },
+        responseType: "none",
+    });
+}
+
+function imageParams(action, endpoint) {
+    return requestParams(action, endpoint, {
+        headers: {
+            Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        },
+        responseType: "none",
+    });
+}
+
+function parseJson(response) {
+    try {
+        return response.json();
+    } catch (error) {
+        return null;
+    }
+}
+
+function defaultFile(filename, contentType) {
+    return http.file("k6-placeholder", filename, contentType);
+}
+
+function generatedFrameThumbnail() {
+    return http.file(GENERATED_FRAME_THUMBNAIL, "frame-thumbnail.jpg", "image/jpeg");
+}
+
+function selectedVideoFile(selection) {
+    return http.file(selection.data, selection.filename, selection.contentType);
+}
+
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomString(minLength, maxLength) {
+    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const length = randomInt(minLength, maxLength);
+    let value = "";
+    for (let index = 0; index < length; index += 1) {
+        value += characters[Math.floor(Math.random() * characters.length)];
+    }
+    return value;
+}
+
+function randomName() {
+    return randomString(12, 24);
+}
+
+function pickWeighted(items) {
+    const totalWeight = items.reduce((total, item) => total + item.weight, 0);
+    let cursor = Math.random() * totalWeight;
+
+    for (let index = 0; index < items.length; index += 1) {
+        cursor -= items[index].weight;
+        if (cursor < 0) {
+            return items[index];
+        }
+    }
+
+    return items[items.length - 1];
+}
+
+function resolveVideoSelection(videoId) {
+    if (videoId) {
+        return VIDEO_POOL.find((video) => video.id === videoId) || VIDEO_POOL[0];
+    }
+    return pickWeighted(VIDEO_POOL);
+}
+
+function registerVideoIdForDuration(videoId, durationSeconds) {
+    if (!Number.isFinite(videoId) || !Number.isFinite(durationSeconds)) {
+        return;
+    }
+    const key = String(durationSeconds);
+    if (!VIDEO_IDS_BY_DURATION[key]) {
+        VIDEO_IDS_BY_DURATION[key] = [];
+    }
+    if (!VIDEO_IDS_BY_DURATION[key].includes(videoId)) {
+        VIDEO_IDS_BY_DURATION[key].push(videoId);
+    }
+}
+
+function inferDurationSeconds(video) {
+    if (!video || typeof video !== "object") return null;
+    const candidates = [
+        video.duration_seconds,
+        video.durationSeconds,
+        video.duration,
+        video.length_seconds,
+    ];
+    for (let index = 0; index < candidates.length; index += 1) {
+        const value = Number(candidates[index]);
+        if (Number.isFinite(value) && value > 0) return Math.round(value);
+    }
+    return null;
+}
+
+function registerVideoFromApi(video, fallbackDurationSeconds = null) {
+    if (!video || !Number.isFinite(video.id)) return;
+    const inferredDuration = inferDurationSeconds(video);
+    registerVideoIdForDuration(video.id, inferredDuration || fallbackDurationSeconds);
+}
+
+function selectionTemplateForDuration(durationSeconds) {
+    const candidates = VIDEO_POOL.filter((video) => video.durationSeconds === durationSeconds);
+    return pickWeighted(candidates.length ? candidates : VIDEO_POOL);
+}
+
+function pickVideoSelectionByDurationMap() {
+    const pickedDuration = pickWeighted(DURATION_BUCKETS).durationSeconds;
+    const ids = VIDEO_IDS_BY_DURATION[String(pickedDuration)] || [];
+    if (ids.length > 0) {
+        const template = selectionTemplateForDuration(pickedDuration);
+        return {
+            ...template,
+            id: ids[randomInt(0, ids.length - 1)],
+            durationSeconds: pickedDuration,
+        };
+    }
+    return pickRandomUploadedVideoSelection();
+}
+
+function selectionForUploadedVideo(video) {
+    const inferredDuration = inferDurationSeconds(video);
+    const template = selectionTemplateForDuration(inferredDuration || pickWeighted(DURATION_BUCKETS).durationSeconds);
+    return { ...template, id: video.id };
+}
+
+function pickRandomUploadedVideoSelection() {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+        const offset = randomInt(0, 9) * 100;
+        const response = http.get(
+            url(`/videos?offset=${offset}&limit=100`),
+            requestParams("selectUploadedVideo", "pickRandomVideo"),
+        );
+        const body = parseJson(response);
+        if (response.status === 200 && Array.isArray(body) && body.length > 0) {
+            const selected = body[randomInt(0, body.length - 1)];
+            registerVideoFromApi(selected);
+            return selectionForUploadedVideo(selected);
+        }
+    }
+
+    return pickWeighted(VIDEO_POOL);
+}
+
+function paramsWithVideoSelection(params) {
+    if (typeof params.pickVideoSelection === "function") {
+        return { ...params, videoSelection: params.pickVideoSelection() };
+    }
+    return { ...params, videoSelection: pickVideoSelectionByDurationMap() };
+}
+
+function checkJson(response, name, validator) {
+    check(response, {
+        [name]: (r) => r.status === 200 && validator(parseJson(r)),
+    });
+}
+
+function checkStatus(response, name, expectedStatuses = [200]) {
+    const statuses = Array.isArray(expectedStatuses) ? expectedStatuses : [expectedStatuses];
+    check(response, {
+        [name]: (r) => statuses.includes(r.status),
+    });
+}
+
+function headerValue(headers, name) {
+    const target = name.toLowerCase();
+    const found = Object.keys(headers || {}).find((key) => key.toLowerCase() === target);
+    return found ? String(headers[found]) : "";
+}
+
+function isVideoContentType(response) {
+    const contentType = headerValue(response.headers, "Content-Type").toLowerCase();
+    return contentType.includes("video/") || contentType.includes("application/octet-stream");
+}
+
+function checkVideoChunk(response) {
+    check(response, {
+        "stream chunk has media status": (r) => r.status === 200 || r.status === 206 || r.status === 416,
+        "stream chunk has video content type": isVideoContentType,
+        "stream partial response has content range": (r) =>
+            r.status !== 206 || headerValue(r.headers, "Content-Range").toLowerCase().startsWith("bytes "),
+        "stream 416 has unsatisfied range header": (r) =>
+            r.status !== 416 || headerValue(r.headers, "Content-Range").toLowerCase().startsWith("bytes */"),
+    });
+}
+
+function getVisibleVideoIds(videoListResponse) {
+    const body = parseJson(videoListResponse);
+    return (Array.isArray(body) ? body : [])
+        .filter((video) => video.thumbnail_url)
+        .map((video) => video.id);
+}
+
+function getVisibleUploaderIds(videoListResponse) {
+    const body = parseJson(videoListResponse);
+    return (Array.isArray(body) ? body : [])
+        .filter((video) => video.uploader && video.uploader.id && video.uploader.avatar_url)
+        .map((video) => video.uploader.id);
+}
+
+function getVisibleUserIds(userListResponse) {
+    const body = parseJson(userListResponse);
+    return (Array.isArray(body) ? body : [])
+        .filter((user) => user.avatar_url)
+        .map((user) => user.id);
+}
+
+function requestVideoThumbnails(videoIds, action) {
+    videoIds.forEach((videoId) => {
+        const response = http.get(
+            url(`/videos/${videoId}/thumbnail`),
+            imageParams(action, "videoThumbnail"),
+        );
+        checkStatus(response, "thumbnail status is valid", [200, 404]);
+    });
+}
+
+function requestUserAvatars(userIds, action) {
+    userIds.forEach((userId) => {
+        const response = http.get(
+            url(`/users/${userId}/avatar`),
+            imageParams(action, "userAvatar"),
+        );
+        checkStatus(response, "avatar status is valid", [200, 404]);
+    });
+}
+
+function openMainPage({ userId } = {}) {
+    const [videos, users, providers, subscriptions] = http.batch([
+        ["GET", url("/videos?offset=0&limit=20"), null, requestParams("openMainPage", "listVideos")],
+        ["GET", url("/users"), null, requestParams("openMainPage", "listUsers")],
+        ["GET", url("/users/providers"), null, requestParams("openMainPage", "listProviders")],
+        ["GET", url(`/users/${userId}/subscriptions`), null, requestParams("openMainPage", "listSubscriptions")],
+    ]);
+
+    check(videos, {
+        "main page videos response is valid": (r) => r.status === 200 && checker.checkVideoArrayResponse(parseJson(r)),
+    });
+    checkJson(users, "main page users response is valid", checker.checkUserArrayResponse);
+    checkJson(providers, "providers response is valid", checker.checkProvidersObject);
+    checkJson(subscriptions, "subscriptions response is valid", checker.checkSubscriptionsObject);
+
+    requestVideoThumbnails(getVisibleVideoIds(videos), "openMainPage");
+    requestUserAvatars(getVisibleUploaderIds(videos), "openMainPage");
+}
+
+function openUserPage({ userId } = {}) {
+    const [users, providers, subscriptions] = http.batch([
+        ["GET", url("/users"), null, requestParams("openUserPage", "listUsers")],
+        ["GET", url("/users/providers"), null, requestParams("openUserPage", "listProviders")],
+        ["GET", url(`/users/${userId}/subscriptions`), null, requestParams("openUserPage", "listSubscriptions")],
+    ]);
+
+    checkJson(users, "user page users response is valid", checker.checkUserArrayResponse);
+    checkJson(providers, "providers response is valid", checker.checkProvidersObject);
+    checkJson(subscriptions, "subscriptions response is valid", checker.checkSubscriptionsObject);
+
+    requestUserAvatars(getVisibleUserIds(users), "openUserPage");
+}
+
+function createUser({
+    displayName = randomName(),
+    provider = "local",
+    providerSubject = `k6-user-${__VU}-${__ITER}-${Date.now()}`,
+    email = `k6-user-${__VU}-${__ITER}-${Date.now()}@example.test`,
+    avatar = defaultFile("avatar.jpg", "image/jpeg"),
+} = {}) {
+    const response = http.post(
+        url("/users"),
+        {
+            display_name: displayName,
+            provider,
+            provider_subject: providerSubject,
+            email,
+            avatar,
+        },
+        multipartParams("createUser", "createUser"),
+    );
+    checkJson(response, "created user response is valid", checker.checkUserObject);
+
+    const users = http.get(
+        url("/users"),
+        requestParams("createUser", "refreshUsers"),
+    );
+    checkJson(users, "refreshed users response is valid", checker.checkUserArrayResponse);
+
+    const providers = http.get(
+        url("/users/providers"),
+        requestParams("createUser", "refreshProviders"),
+    );
+    checkJson(providers, "refreshed providers response is valid", checker.checkProvidersObject);
+
+    return response.status === 200 ? parseJson(response) : null;
+}
+
+function uploadVideo({
+    userId,
+    title = randomString(20, 45),
+    description = randomString(120, 260),
+    videoSelection = pickWeighted(VIDEO_POOL),
+    videoFile = selectedVideoFile(videoSelection),
+    thumbnail = generatedFrameThumbnail(),
+} = {}) {
+    const response = http.post(
+        url("/videos/upload"),
+        {
+            title,
+            description,
+            uploader_id: userId,
+            file: videoFile,
+            thumbnail,
+        },
+        multipartParams("uploadVideo", "uploadVideo"),
+    );
+    checkJson(response, "uploaded video response is valid", checker.checkVideoObject);
+
+    const createdVideo = response.status === 200 ? parseJson(response) : null;
+    registerVideoFromApi(createdVideo, videoSelection.durationSeconds);
+    return createdVideo;
+}
+
+function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), chunkSeconds = STREAM_CHUNK_SECONDS } = {}) {
+    const [video, comments, recommended] = http.batch([
+        ["GET", url(`/videos/${videoSelection.id}`), null, requestParams("watchVideo", "getVideo")],
+        ["GET", url(`/videos/${videoSelection.id}/comments`), null, requestParams("watchVideo", "listComments")],
+        ["GET", url(`/videos/${videoSelection.id}/recommended`), null, requestParams("watchVideo", "recommendedVideos")],
+    ]);
+
+    checkJson(video, "watch video response is valid", checker.checkVideoObject);
+    checkJson(comments, "watch comments response is valid", checker.checkCommentArrayResponse);
+    checkJson(recommended, "recommended videos response is valid", checker.checkVideoArrayResponse);
+
+    requestVideoThumbnails(getVisibleVideoIds(recommended), "watchVideo");
+
+    const chunkCount = Math.max(1, Math.ceil(videoSelection.durationSeconds / chunkSeconds));
+    const startedAt = Date.now();
+    let nextOffset = 0;
+
+    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
+        const range =
+            chunkIndex === 0
+                ? "bytes=0-"
+                : `bytes=${nextOffset}-${nextOffset + STREAM_RANGE_WINDOW_BYTES - 1}`;
+
+        const stream = http.get(
+            url(`/videos/${videoSelection.id}/stream`),
+            mediaParams("watchVideo", "streamVideo", range),
+        );
+        checkVideoChunk(stream);
+
+        if (stream.status === 416) {
+            break;
+        }
+
+        if (stream.status === 200) {
+            break;
+        }
+
+        const contentRange = headerValue(stream.headers, "Content-Range");
+        const rangeMatch = /^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i.exec(contentRange);
+        if (rangeMatch) {
+            nextOffset = Number(rangeMatch[2]) + 1;
+        } else {
+            nextOffset += STREAM_RANGE_WINDOW_BYTES;
+        }
+
+        const targetElapsedSeconds = Math.min(videoSelection.durationSeconds, (chunkIndex + 1) * chunkSeconds);
+        const elapsedSeconds = (Date.now() - startedAt) / 1000;
+        if (targetElapsedSeconds > elapsedSeconds) {
+            sleep(targetElapsedSeconds - elapsedSeconds);
+        }
+    }
+
+    const elapsedSeconds = (Date.now() - startedAt) / 1000;
+    if (videoSelection.durationSeconds > elapsedSeconds) {
+        sleep(videoSelection.durationSeconds - elapsedSeconds);
+    }
+}
+
+function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), author = randomName(), content = randomString(40, 120) } = {}) {
+    const response = http.post(
+        url(`/videos/${videoSelection.id}/comments`),
+        JSON.stringify({ author, content }),
+        jsonParams("addComment", "addComment"),
+    );
+    checkJson(response, "created comment response is valid", checker.checkCommentObject);
+    return response.status === 200 ? parseJson(response) : null;
+}
+
+function goDownPage({ offset = 20 } = {}) {
+    const videos = http.get(
+        url(`/videos?offset=${offset}&limit=20`),
+        requestParams("goDownPage", "loadMoreVideos"),
+    );
+    checkJson(videos, "load more videos response is valid", checker.checkVideoArrayResponse);
+}
+
+function goDownVideoReproductionPage({ seconds = 1 } = {}) {
+    sleep(seconds);
+}
+
+function selectAction(params = {}) {
+    const actions = [
+        { weight: 34, run: () => openMainPage(params) },
+        { weight: 5, run: () => openUserPage(params) },
+        { weight: 1, run: () => createUser(params) },
+        { weight: 1, run: () => uploadVideo(params) },
+        { weight: 48, run: () => watchVideo(paramsWithVideoSelection(params)) },
+        { weight: 8, run: () => goDownPage(params) },
+        { weight: 5, run: () => addComment(paramsWithVideoSelection(params)) },
+    ];
+    const totalWeight = actions.reduce((total, action) => total + action.weight, 0);
+    let cursor = Math.random() * totalWeight;
+
+    for (let index = 0; index < actions.length; index += 1) {
+        cursor -= actions[index].weight;
+        if (cursor < 0) {
+            return actions[index].run();
+        }
+    }
+
+    return actions[actions.length - 1].run();
+}
+
+export default {
+    pickRandomUploadedVideoSelection,
+    openMainPage,
+    openUserPage,
+    createUser,
+    uploadVideo,
+    watchVideo,
+    addComment,
+    goDownPage,
+    goDownVideoReproductionPage,
+    selectAction,
+};

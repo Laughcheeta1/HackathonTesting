@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>K6 Dataset Requirements</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --paper: #fff;
+      --ink: #171717;
+      --muted: #666;
+      --line: #deded9;
+      --accent: #c21b1b;
+      --soft: #f1f1ee;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1080px; margin: 0 auto; padding: 34px 20px 56px; }
+    h1 { margin: 0 0 8px; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.05; }
+    h2 { margin: 0 0 12px; font-size: 1.25rem; }
+    p { margin: 0 0 10px; color: var(--muted); }
+    section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 20px 0 8px;
+    }
+    .metric {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .metric strong { display: block; font-size: 1.3rem; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      border-top: 1px solid var(--line);
+      padding: 10px 8px;
+      overflow-wrap: anywhere;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 1px 5px;
+      display: inline-block;
+      margin: 2px 2px 2px 0;
+      line-height: 1.6;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .note {
+      border-left: 4px solid var(--accent);
+    }
+    ul { margin: 8px 0 0 18px; padding: 0; }
+    li { margin: 4px 0; }
+    @media (max-width: 820px) {
+      .summary { grid-template-columns: 1fr 1fr; }
+      table, thead, tbody, tr, th, td { display: block; }
+      thead { display: none; }
+      tr { border-top: 1px solid var(--line); padding: 8px 0; }
+      td { border-top: 0; padding: 6px 0; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>K6 Seed Dataset Requirements</h1>
+    <p>Use the same seed shape for every YouTube clone before each run. Repeated names, comments, thumbnails, and video files are acceptable because the goal is load behavior, not content realism.</p>
+    <div class="summary">
+      <div class="metric"><strong>3 apps</strong><span>same dataset shape</span></div>
+      <div class="metric"><strong>100-500</strong><span>seed users</span></div>
+      <div class="metric"><strong>100-500</strong><span>seed videos</span></div>
+      <div class="metric"><strong>reset</strong><span>before each clone/run</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Required Entities</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Entity</th>
+          <th>Minimum Fields</th>
+          <th>Recommended Volume</th>
+          <th>Why It Is Needed</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Users</strong></td>
+          <td><code>id</code>, <code>display_name</code>, <code>created_at</code>, optional <code>email</code>, optional <code>avatar_url/avatar_path</code></td>
+          <td>100-500 total users. Include at least 20 creator/uploader users.</td>
+          <td>Needed for current-user selection, user page, subscriptions, comments, uploads, and German JWT token issuance.</td>
+        </tr>
+        <tr>
+          <td><strong>Provider identities</strong></td>
+          <td><code>provider</code>, <code>provider_subject</code>, linked <code>user_id</code></td>
+          <td>One identity per user. Use <code>provider=local</code> and unique subjects like <code>seed-user-001</code>.</td>
+          <td>Needed by apps that enforce provider uniqueness when creating users.</td>
+        </tr>
+        <tr>
+          <td><strong>Subscriptions</strong></td>
+          <td><code>follower_id</code>, <code>creator_id</code>, optional <code>created_at</code></td>
+          <td>Each regular user subscribes to 5-20 creators. Avoid self-subscriptions.</td>
+          <td>Needed for subscription feed and app startup subscription checks.</td>
+        </tr>
+        <tr>
+          <td><strong>Videos</strong></td>
+          <td><code>id</code>, <code>title</code>, <code>description</code>, <code>views</code>, <code>created_at</code>, uploader/user reference, file path, optional thumbnail path, optional category</td>
+          <td>100-500 seeded videos. More is better for pagination and recommendation tests.</td>
+          <td>Needed for home page, watch page, recommendations, thumbnails, and streaming.</td>
+        </tr>
+        <tr>
+          <td><strong>Video files</strong></td>
+          <td>Physical files referenced by each seeded video record.</td>
+          <td>Reuse a small fixed pool across many video records if needed.</td>
+          <td>Needed because stream endpoints read actual files. Missing files turn playback into 404 tests.</td>
+        </tr>
+        <tr>
+          <td><strong>Thumbnails</strong></td>
+          <td>Physical image files referenced by video thumbnail paths.</td>
+          <td>One thumbnail per video is ideal. Reuse images if necessary.</td>
+          <td>Home and recommendation cards trigger thumbnail requests.</td>
+        </tr>
+        <tr>
+          <td><strong>Avatars</strong></td>
+          <td>Physical image files referenced by user avatar paths.</td>
+          <td>Optional but recommended for at least 25-50% of users.</td>
+          <td>User pages and uploader displays may trigger avatar requests.</td>
+        </tr>
+        <tr>
+          <td><strong>Comments</strong></td>
+          <td><code>id</code>, <code>video_id</code>, <code>author</code>, <code>content</code>, <code>created_at</code></td>
+          <td>10-100 comments for popular videos, 0-10 for long-tail videos.</td>
+          <td>Needed for watch page comment loading and scroll/read behavior.</td>
+        </tr>
+        <tr>
+          <td><strong>K6 test users</strong></td>
+          <td>Known user IDs available to K6, plus token support for authenticated apps.</td>
+          <td>At least 50 reusable users.</td>
+          <td>Needed for create/upload/comment/subscribe flows without all VUs fighting over one user.</td>
+        </tr>
+        <tr>
+          <td><strong>Upload payloads</strong></td>
+          <td>Local media files and thumbnails used by K6 multipart upload actions.</td>
+          <td>Your proposed pool: 6 around 1 min, 2 around 3 min, 2 around 10 min, 1 around 40 min.</td>
+          <td>Needed for consistent upload cost across every clone.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Video File Pool</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Count</th>
+          <th>Duration</th>
+          <th>Use</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Short clips</td>
+          <td>6</td>
+          <td>About 1 minute</td>
+          <td>Most upload actions and many seeded videos.</td>
+        </tr>
+        <tr>
+          <td>Medium clips</td>
+          <td>2</td>
+          <td>About 3 minutes</td>
+          <td>Normal playback variety.</td>
+        </tr>
+        <tr>
+          <td>Long clips</td>
+          <td>2</td>
+          <td>About 10 minutes</td>
+          <td>Longer stream/range behavior.</td>
+        </tr>
+        <tr>
+          <td>Very long clip</td>
+          <td>1</td>
+          <td>About 40 minutes</td>
+          <td>Stress storage, metadata, and stream behavior without making every upload huge.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Suggested Seed Shape</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Scale</th>
+          <th>Users</th>
+          <th>Videos</th>
+          <th>Comments</th>
+          <th>Subscriptions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Small baseline</td>
+          <td>100</td>
+          <td>100</td>
+          <td>1,000-2,000</td>
+          <td>500-1,000</td>
+        </tr>
+        <tr>
+          <td>Recommended</td>
+          <td>300</td>
+          <td>300</td>
+          <td>5,000-10,000</td>
+          <td>2,000-4,000</td>
+        </tr>
+        <tr>
+          <td>Heavy seed</td>
+          <td>500+</td>
+          <td>500+</td>
+          <td>20,000+</td>
+          <td>5,000+</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="note">
+    <h2>Run Rules</h2>
+    <ul>
+      <li>Reset the database and uploaded-file volume before each clone test.</li>
+      <li>Use the same file sizes, encodings, thumbnails, comments, and subscription graph for every clone.</li>
+      <li>Keep a fixed list of valid video IDs and user IDs for K6 to sample from.</li>
+      <li>Use unique <code>provider_subject</code> values for created users during tests to avoid accidental <code>409</code> conflicts.</li>
+      <li>Record how many videos/users were created during each run, because write actions change later read traffic.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>
