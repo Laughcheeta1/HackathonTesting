@@ -110,9 +110,12 @@ This means:
 - Browser-triggered media and image requests are included when they happen in the real UI.
 - Calls caused by another action are not counted in the wrong action.
 
-For example, uploading a video only includes the upload form request itself:
+For example, uploading a video includes the upload form request and only the direct post-success refresh requests that the upload page starts:
 
 - `POST /videos/upload`
+- Braulio: `GET /videos?offset=0&limit=20`
+- Cristobal: `GET /videos`
+- German: no immediate video-list GET from the upload page; it invalidates React Query caches locally
 
 If upload success navigates to the watch page, those watch-page requests belong to the `watching video` action, not the upload action.
 
@@ -232,9 +235,12 @@ The shared action selector chooses actions by weight. The current `watchVideo` a
 - media stream range requests
 - view increment request where that project frontend does it
 
-The upload action includes only:
+The upload action includes:
 
 - `POST /videos/upload`
+- Braulio: `GET /videos?offset=0&limit=20`
+- Cristobal: `GET /videos`
+- German: no immediate video-list GET; upload success only invalidates inactive/related query caches locally before watch navigation
 
 The main page action includes the same initial video/user/provider/subscription fetches the frontend triggers, plus browser image requests for rendered thumbnails and avatars.
 
@@ -244,6 +250,5 @@ The main page action includes the same initial video/user/provider/subscription 
 - Do not add artificial caps to image or media requests if the frontend does not cap them.
 - Keep upload, watch, scroll, and comment actions separate unless the frontend truly performs them as one user action.
 - Confirm whether each backend stores or returns video duration. If it does not, the K6 script must use the upload-selected duration as fallback.
-- Verify K6 scripts with `k6 inspect` after edits, not only `node --check`, because K6 uses its own JS runtime.
+- Do not run K6 commands in this repo. Use static checks and code review for K6 script changes unless a separate safe runtime is explicitly provided.
 - Run tests from a clean, seeded database when comparing projects.
-

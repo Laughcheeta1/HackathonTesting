@@ -379,7 +379,11 @@ function createUser({
     );
     checkJson(providers, "refreshed providers response is valid", checker.checkProvidersObject);
 
-    return response.status === 200 ? parseJson(response) : null;
+    const createdUser = response.status === 200 ? parseJson(response) : null;
+    if (createdUser && createdUser.avatar_url) {
+        requestUserAvatars([createdUser.avatar_url], "createUser");
+    }
+    return createdUser;
 }
 
 function uploadVideo({
@@ -405,6 +409,13 @@ function uploadVideo({
 
     const createdVideo = response.status === 200 ? parseJson(response) : null;
     registerVideoFromApi(createdVideo, videoSelection.durationSeconds);
+
+    const refreshedVideos = http.get(
+        url("/videos?offset=0&limit=20"),
+        requestParams("uploadVideo", "refreshVideos"),
+    );
+    checkJson(refreshedVideos, "post-upload videos refresh response is valid", checker.checkVideoArrayResponse);
+
     return createdVideo;
 }
 
@@ -473,6 +484,13 @@ function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), 
         jsonParams("addComment", "addComment"),
     );
     checkJson(response, "created comment response is valid", checker.checkCommentObject);
+
+    const comments = http.get(
+        url(`/videos/${videoSelection.id}/comments`),
+        requestParams("addComment", "refreshComments"),
+    );
+    checkJson(comments, "refreshed comments response is valid", checker.checkCommentArrayResponse);
+
     return response.status === 200 ? parseJson(response) : null;
 }
 
@@ -482,6 +500,8 @@ function goDownPage({ offset = 20 } = {}) {
         requestParams("goDownPage", "loadMoreVideos"),
     );
     checkJson(videos, "load more videos response is valid", checker.checkVideoArrayResponse);
+    requestVideoThumbnails(getVisibleVideoThumbnailUrls(videos), "goDownPage");
+    requestUserAvatars(getVisibleUploaderAvatarUrls(videos), "goDownPage");
 }
 
 function goDownVideoReproductionPage({ seconds = 1 } = {}) {

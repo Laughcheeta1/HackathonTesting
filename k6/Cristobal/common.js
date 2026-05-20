@@ -379,7 +379,11 @@ function createUser({
     );
     checkJson(providers, "refreshed providers response is valid", checker.checkProvidersObject);
 
-    return response.status === 200 ? parseJson(response) : null;
+    const createdUser = response.status === 200 ? parseJson(response) : null;
+    if (createdUser && createdUser.avatar_url) {
+        requestUserAvatars([createdUser.avatar_url], "createUser");
+    }
+    return createdUser;
 }
 
 function uploadVideo({
@@ -407,6 +411,13 @@ function uploadVideo({
 
     const createdVideo = response.status === 200 ? parseJson(response) : null;
     registerVideoFromApi(createdVideo, videoSelection.durationSeconds);
+
+    const refreshedVideos = http.get(
+        url("/videos"),
+        requestParams("uploadVideo", "refreshVideos"),
+    );
+    checkJson(refreshedVideos, "post-upload videos refresh response is valid", checker.checkVideoArrayResponse);
+
     return createdVideo;
 }
 
@@ -427,14 +438,7 @@ function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), 
     const startedAt = Date.now();
     let nextOffset = 0;
 
-    const views = http.post(
-        url(`/videos/${videoSelection.id}/views`),
-        null,
-        requestParams("watchVideo", "incrementViews", {
-            headers: { Accept: "application/json" },
-        }),
-    );
-    checkJson(views, "view increment response is valid", checker.checkVideoObject);
+    let didIncrementView = false;
 
     for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
         const range =
@@ -447,6 +451,24 @@ function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), 
             mediaParams("watchVideo", "streamVideo", range),
         );
         checkVideoChunk(stream);
+
+        if (!didIncrementView && (stream.status === 200 || stream.status === 206)) {
+            didIncrementView = true;
+            const views = http.post(
+                url(`/videos/${videoSelection.id}/views`),
+                null,
+                requestParams("watchVideo", "incrementViews", {
+                    headers: { Accept: "application/json" },
+                }),
+            );
+            checkJson(views, "view increment response is valid", checker.checkVideoObject);
+
+            const refreshedVideo = http.get(
+                url(`/videos/${videoSelection.id}`),
+                requestParams("watchVideo", "refreshVideoAfterView"),
+            );
+            checkJson(refreshedVideo, "post-view video refresh response is valid", checker.checkVideoObject);
+        }
 
         if (stream.status === 416) {
             break;
@@ -484,6 +506,13 @@ function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), 
         jsonParams("addComment", "addComment"),
     );
     checkJson(response, "created comment response is valid", checker.checkCommentObject);
+
+    const comments = http.get(
+        url(`/videos/${videoSelection.id}/comments`),
+        requestParams("addComment", "refreshComments"),
+    );
+    checkJson(comments, "refreshed comments response is valid", checker.checkCommentArrayResponse);
+
     return response.status === 200 ? parseJson(response) : null;
 }
 

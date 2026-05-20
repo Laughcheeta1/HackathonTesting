@@ -481,7 +481,11 @@ function createUser({
     checkJson(providers, "refreshed providers response is valid", checker.checkProvidersObject);
     checkJson(pageUsers, "refreshed users page response is valid", checker.checkPaginatedUserObjectResponse);
 
-    return response.status === 200 ? parseJson(response) : null;
+    const createdUser = response.status === 200 ? parseJson(response) : null;
+    if (createdUser && createdUser.avatar_url) {
+        requestUserAvatars([createdUser.avatar_url], "createUser");
+    }
+    return createdUser;
 }
 
 // Verify the last 3 lines of the function
@@ -576,6 +580,13 @@ function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), 
         jsonParams("addComment", "addComment", { Authorization: `Bearer ${token}` }),
     );
     checkJson(response, "created comment response is valid", checker.checkCommentObject);
+
+    const comments = http.get(
+        url(`/videos/${videoSelection.id}/comments`),
+        requestParams("addComment", "refreshComments"),
+    );
+    checkJson(comments, "refreshed comments response is valid", checker.checkPaginatedCommentObjectResponse);
+
     return response.status === 200 ? parseJson(response) : null;
 }
 
@@ -585,6 +596,8 @@ function goDownPage({ videoOffset = 20 } = {}) {
         requestParams("goDownPage", "loadMoreVideos"),
     );
     checkJson(videos, "load more videos response is valid", checker.checkPaginatedVideoObjectResponse);
+    requestVideoThumbnails(getVisibleVideoThumbnailUrls(videos), "goDownPage");
+    requestUserAvatars(getVisibleUploaderAvatarUrls(videos), "goDownPage");
 }
 
 function goDownVideoReproductionPage({ seconds = 1 } = {}) {
