@@ -78,6 +78,7 @@ function url(path) {
     return `${BASE_URL}${path}`;
 }
 
+// Verified
 function assetUrl(path) {
     if (/^https?:\/\//i.test(path)) return path;
     if (path.startsWith("/api/") || path.startsWith("/uploads/")) return `http://localhost${path}`;
@@ -430,6 +431,7 @@ function getAuthToken(userId, action = "getAuthToken") {
     return body ? body.access_token : null;
 }
 
+// verified
 function getVisibleVideoThumbnailUrls(videoListResponse) {
     const body = parseJson(videoListResponse);
     return ((body && body.items) || [])
@@ -437,6 +439,7 @@ function getVisibleVideoThumbnailUrls(videoListResponse) {
         .map((video) => video.thumbnail_url);
 }
 
+// Verified
 function getVisibleUploaderAvatarUrls(videoListResponse) {
     const body = parseJson(videoListResponse);
     return ((body && body.items) || [])
@@ -451,6 +454,7 @@ function getVisibleUserAvatarUrls(userListResponse) {
         .map((user) => user.avatar_url);
 }
 
+// Verified
 function getCurrentUserAvatarUrl(userListResponse, userId) {
     const body = parseJson(userListResponse);
     const users = (body && body.items) || [];
@@ -458,6 +462,7 @@ function getCurrentUserAvatarUrl(userListResponse, userId) {
     return currentUser && currentUser.avatar_url ? currentUser.avatar_url : null;
 }
 
+// Verified
 function requestVideoThumbnails(thumbnailUrls, action) {
     [...new Set(thumbnailUrls)].forEach((thumbnailUrl) => {
         const response = http.get(
@@ -468,6 +473,7 @@ function requestVideoThumbnails(thumbnailUrls, action) {
     });
 }
 
+// Verified
 function requestUserAvatars(avatarUrls, action) {
     [...new Set(avatarUrls.filter(Boolean))].forEach((avatarUrl) => {
         const response = http.get(
@@ -478,6 +484,7 @@ function requestUserAvatars(avatarUrls, action) {
     });
 }
 
+// verified
 function openMainPage({ userId } = {}) {
     const searchQuery = randomSearchQuery();
     const [videos, users, providers, subscriptions] = http.batch([
