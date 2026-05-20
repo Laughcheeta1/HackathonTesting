@@ -28,7 +28,7 @@ export const options = {
 };
 
 function recordUser(user) {
-    if (user && Number.isFinite(user.id)) {
+    if (user) {
         seedManifest.userIds.push(user.id);
         seedManifest.authUsers.push({ id: user.id, tokenEndpoint: "/auth/token" });
     }
@@ -41,14 +41,10 @@ function tokenForUser(userId) {
     return tokensByUserId[userId];
 }
 
-function videoDuration(video, selection) {
-    return Number(video && (video.duration_seconds || video.durationSeconds || video.duration)) || selection.durationSeconds;
-}
-
 function recordVideo(video, selection) {
-    if (!video || !Number.isFinite(video.id)) return;
+    if (!video) return;
 
-    const durationSeconds = videoDuration(video, selection);
+    const durationSeconds = selection.durationSeconds;
     seedManifest.videoIds.push(video.id);
     seedManifest.videosById[String(video.id)] = {
         id: video.id,
@@ -57,9 +53,6 @@ function recordVideo(video, selection) {
     };
 
     const bucket = String(durationSeconds);
-    if (!seedManifest.videosByDuration[bucket]) {
-        seedManifest.videosByDuration[bucket] = [];
-    }
     seedManifest.videosByDuration[bucket].push(video.id);
 }
 

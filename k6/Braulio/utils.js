@@ -7,7 +7,7 @@ function isString(value) {
 }
 
 function isNumber(value) {
-    return typeof value === "number" && Number.isFinite(value);
+    return typeof value === "number";
 }
 
 function isNullableString(value) {

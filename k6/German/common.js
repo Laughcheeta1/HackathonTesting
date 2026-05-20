@@ -215,37 +215,10 @@ function resolveVideoSelection(videoId) {
 }
 
 function registerVideoIdForDuration(videoId, durationSeconds) {
-    if (!Number.isFinite(videoId) || !Number.isFinite(durationSeconds)) {
-        return;
+    const ids = VIDEO_IDS_BY_DURATION[String(durationSeconds)];
+    if (!ids.includes(videoId)) {
+        ids.push(videoId);
     }
-    const key = String(durationSeconds);
-    if (!VIDEO_IDS_BY_DURATION[key]) {
-        VIDEO_IDS_BY_DURATION[key] = [];
-    }
-    if (!VIDEO_IDS_BY_DURATION[key].includes(videoId)) {
-        VIDEO_IDS_BY_DURATION[key].push(videoId);
-    }
-}
-
-function inferDurationSeconds(video) {
-    if (!video || typeof video !== "object") return null;
-    const candidates = [
-        video.duration_seconds,
-        video.durationSeconds,
-        video.duration,
-        video.length_seconds,
-    ];
-    for (let index = 0; index < candidates.length; index += 1) {
-        const value = Number(candidates[index]);
-        if (Number.isFinite(value) && value > 0) return Math.round(value);
-    }
-    return null;
-}
-
-function registerVideoFromApi(video, fallbackDurationSeconds = null) {
-    if (!video || !Number.isFinite(video.id)) return;
-    const inferredDuration = inferDurationSeconds(video);
-    registerVideoIdForDuration(video.id, inferredDuration || fallbackDurationSeconds);
 }
 
 function selectionTemplateForDuration(durationSeconds) {
@@ -279,8 +252,8 @@ function loadSeedManifest(path = "./seed-manifest-german.json") {
         throw new Error("German seed manifest is empty. Re-run bootstrap against a clean seeded database.");
     }
 
-    manifest.userIds = Array.isArray(manifest.userIds) ? manifest.userIds.map(Number).filter(Number.isFinite) : [];
-    manifest.videoIds = Array.isArray(manifest.videoIds) ? manifest.videoIds.map(Number).filter(Number.isFinite) : [];
+    manifest.userIds = Array.isArray(manifest.userIds) ? manifest.userIds.map(Number) : [];
+    manifest.videoIds = Array.isArray(manifest.videoIds) ? manifest.videoIds.map(Number) : [];
 
     if (manifest.userIds.length === 0) {
         throw new Error("German seed manifest is missing userIds. Re-run bootstrap against a clean seeded database.");
@@ -289,9 +262,6 @@ function loadSeedManifest(path = "./seed-manifest-german.json") {
         throw new Error("German seed manifest is missing videoIds. Re-run bootstrap so watch/comment actions have seeded videos.");
     }
 
-    Object.values(manifest.videosById || {}).forEach((video) => {
-        registerVideoIdForDuration(Number(video.id), Number(video.durationSeconds));
-    });
     Object.entries(manifest.videosByDuration || {}).forEach(([durationSeconds, ids]) => {
         if (Array.isArray(ids)) {
             ids.forEach((id) => registerVideoIdForDuration(Number(id), Number(durationSeconds)));
@@ -311,10 +281,8 @@ function pickSeededVideoSelection(seedManifest) {
     const bucketIds = (seedManifest.videosByDuration && seedManifest.videosByDuration[String(pickedDuration)]) || [];
     const candidateIds = bucketIds.length > 0 ? bucketIds : seedManifest.videoIds;
     const videoId = Number(candidateIds[randomInt(0, candidateIds.length - 1)]);
-    const video = (seedManifest.videosById && seedManifest.videosById[String(videoId)]) || {};
-    const durationSeconds = Number(video.durationSeconds) || pickedDuration;
-    const template = selectionTemplateForDuration(durationSeconds);
-    return { ...template, id: videoId, durationSeconds };
+    const template = selectionTemplateForDuration(pickedDuration);
+    return { ...template, id: videoId, durationSeconds: pickedDuration };
 }
 
 function pickVideoSelectionByDurationMap() {
@@ -332,8 +300,7 @@ function pickVideoSelectionByDurationMap() {
 }
 
 function selectionForUploadedVideo(video) {
-    const inferredDuration = inferDurationSeconds(video);
-    const template = selectionTemplateForDuration(inferredDuration || pickWeighted(DURATION_BUCKETS).durationSeconds);
+    const template = pickWeighted(VIDEO_POOL);
     return { ...template, id: video.id };
 }
 
@@ -343,7 +310,7 @@ function pickRandomUploadedVideoSelection() {
         requestParams("selectUploadedVideo", "countVideos"),
     );
     const countBody = parseJson(countResponse);
-    const totalCount = countBody && Number.isFinite(countBody.total_count) ? countBody.total_count : 0;
+    const totalCount = countBody ? Number(countBody.total_count) : 0;
 
     if (countResponse.status !== 200 || totalCount < 1) {
         return pickWeighted(VIDEO_POOL);
@@ -357,8 +324,7 @@ function pickRandomUploadedVideoSelection() {
     const videoBody = parseJson(videoResponse);
     const video = videoBody && Array.isArray(videoBody.items) ? videoBody.items[0] : null;
 
-    if (video && Number.isFinite(video.id)) {
-        registerVideoFromApi(video);
+    if (video && video.id) {
         return selectionForUploadedVideo(video);
     }
     return pickWeighted(VIDEO_POOL);
@@ -509,6 +475,7 @@ function openMainPage({ userId } = {}) {
     ], "openMainPage");
 }
 
+// Verified
 function openUserPage({ userId } = {}) {
     const [users, subscriptions] = http.batch([
         ["GET", url("/users?limit=20&offset=0"), null, requestParams("openUserPage", "listUsers")],
@@ -523,6 +490,7 @@ function openUserPage({ userId } = {}) {
     ], "openUserPage");
 }
 
+// Verified
 function createUser({
     displayName = randomString(12, 24),
     provider = "local",
@@ -559,7 +527,6 @@ function createUser({
     return createdUser;
 }
 
-// Verify the last 3 lines of the function
 function uploadVideo({
     userId,
     token,
@@ -582,7 +549,9 @@ function uploadVideo({
     checkJson(response, "uploaded video response is valid", checker.checkVideoObject);
 
     const createdVideo = response.status === 200 ? parseJson(response) : null;
-    registerVideoFromApi(createdVideo, videoSelection.durationSeconds);
+    if (createdVideo) {
+        registerVideoIdForDuration(createdVideo.id, videoSelection.durationSeconds);
+    }
     return createdVideo;
 }
 

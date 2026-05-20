@@ -142,37 +142,10 @@ function resolveVideoSelection(videoId) {
 }
 
 function registerVideoIdForDuration(videoId, durationSeconds) {
-    if (!Number.isFinite(videoId) || !Number.isFinite(durationSeconds)) {
-        return;
+    const ids = VIDEO_IDS_BY_DURATION[String(durationSeconds)];
+    if (!ids.includes(videoId)) {
+        ids.push(videoId);
     }
-    const key = String(durationSeconds);
-    if (!VIDEO_IDS_BY_DURATION[key]) {
-        VIDEO_IDS_BY_DURATION[key] = [];
-    }
-    if (!VIDEO_IDS_BY_DURATION[key].includes(videoId)) {
-        VIDEO_IDS_BY_DURATION[key].push(videoId);
-    }
-}
-
-function inferDurationSeconds(video) {
-    if (!video || typeof video !== "object") return null;
-    const candidates = [
-        video.duration_seconds,
-        video.durationSeconds,
-        video.duration,
-        video.length_seconds,
-    ];
-    for (let index = 0; index < candidates.length; index += 1) {
-        const value = Number(candidates[index]);
-        if (Number.isFinite(value) && value > 0) return Math.round(value);
-    }
-    return null;
-}
-
-function registerVideoFromApi(video, fallbackDurationSeconds = null) {
-    if (!video || !Number.isFinite(video.id)) return;
-    const inferredDuration = inferDurationSeconds(video);
-    registerVideoIdForDuration(video.id, inferredDuration || fallbackDurationSeconds);
 }
 
 function selectionTemplateForDuration(durationSeconds) {
@@ -206,8 +179,8 @@ function loadSeedManifest(path = "./seed-manifest-cristobal.json") {
         throw new Error("Cristobal seed manifest is empty. Re-run bootstrap against a clean seeded database.");
     }
 
-    manifest.userIds = Array.isArray(manifest.userIds) ? manifest.userIds.map(Number).filter(Number.isFinite) : [];
-    manifest.videoIds = Array.isArray(manifest.videoIds) ? manifest.videoIds.map(Number).filter(Number.isFinite) : [];
+    manifest.userIds = Array.isArray(manifest.userIds) ? manifest.userIds.map(Number) : [];
+    manifest.videoIds = Array.isArray(manifest.videoIds) ? manifest.videoIds.map(Number) : [];
 
     if (manifest.userIds.length === 0) {
         throw new Error("Cristobal seed manifest is missing userIds. Re-run bootstrap against a clean seeded database.");
@@ -216,9 +189,6 @@ function loadSeedManifest(path = "./seed-manifest-cristobal.json") {
         throw new Error("Cristobal seed manifest is missing videoIds. Re-run bootstrap so watch/comment actions have seeded videos.");
     }
 
-    Object.values(manifest.videosById || {}).forEach((video) => {
-        registerVideoIdForDuration(Number(video.id), Number(video.durationSeconds));
-    });
     Object.entries(manifest.videosByDuration || {}).forEach(([durationSeconds, ids]) => {
         if (Array.isArray(ids)) {
             ids.forEach((id) => registerVideoIdForDuration(Number(id), Number(durationSeconds)));
@@ -238,10 +208,8 @@ function pickSeededVideoSelection(seedManifest) {
     const bucketIds = (seedManifest.videosByDuration && seedManifest.videosByDuration[String(pickedDuration)]) || [];
     const candidateIds = bucketIds.length > 0 ? bucketIds : seedManifest.videoIds;
     const videoId = Number(candidateIds[randomInt(0, candidateIds.length - 1)]);
-    const video = (seedManifest.videosById && seedManifest.videosById[String(videoId)]) || {};
-    const durationSeconds = Number(video.durationSeconds) || pickedDuration;
-    const template = selectionTemplateForDuration(durationSeconds);
-    return { ...template, id: videoId, durationSeconds };
+    const template = selectionTemplateForDuration(pickedDuration);
+    return { ...template, id: videoId, durationSeconds: pickedDuration };
 }
 
 function pickVideoSelectionByDurationMap() {
@@ -259,8 +227,7 @@ function pickVideoSelectionByDurationMap() {
 }
 
 function selectionForUploadedVideo(video) {
-    const inferredDuration = inferDurationSeconds(video);
-    const template = selectionTemplateForDuration(inferredDuration || pickWeighted(DURATION_BUCKETS).durationSeconds);
+    const template = pickWeighted(VIDEO_POOL);
     return { ...template, id: video.id };
 }
 
@@ -274,7 +241,6 @@ function pickRandomUploadedVideoSelection() {
         const body = parseJson(response);
         if (response.status === 200 && Array.isArray(body) && body.length > 0) {
             const selected = body[randomInt(0, body.length - 1)];
-            registerVideoFromApi(selected);
             return selectionForUploadedVideo(selected);
         }
     }
@@ -474,7 +440,9 @@ function uploadVideo({
     checkJson(response, "uploaded video response is valid", checker.checkVideoObject);
 
     const createdVideo = response.status === 200 ? parseJson(response) : null;
-    registerVideoFromApi(createdVideo, videoSelection.durationSeconds);
+    if (createdVideo) {
+        registerVideoIdForDuration(createdVideo.id, videoSelection.durationSeconds);
+    }
 
     const refreshedVideos = http.get(
         url("/videos"),
