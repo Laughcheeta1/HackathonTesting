@@ -1,21 +1,19 @@
-import http from "k6/http";
-import { check } from "k6";
+import actions from "./common.js";
 
-const BASE_URL = "http://localhost/api";
+const PROJECT = "Braulio";
 const USER_COUNT = 3000;
 const VIDEO_COUNT = 500;
 const COMMENT_COUNT = 5000;
 
-const VIDEO_FILES = [
-    { filename: "one-minute.mp4", contentType: "video/mp4", data: open("../videos/one-minute.mp4", "b"), weight: 45 },
-    { filename: "three-minute-a.mp4", contentType: "video/mp4", data: open("../videos/three-minute-a.mp4", "b"), weight: 18 },
-    { filename: "three-minute-b.mp4", contentType: "video/mp4", data: open("../videos/three-minute-b.mp4", "b"), weight: 18 },
-    { filename: "ten-minute-a.mp4", contentType: "video/mp4", data: open("../videos/ten-minute-a.mp4", "b"), weight: 8 },
-    { filename: "ten-minute-b.mp4", contentType: "video/mp4", data: open("../videos/ten-minute-b.mp4", "b"), weight: 8 },
-    { filename: "forty-minute.mp4", contentType: "video/mp4", data: open("../videos/forty-minute.mp4", "b"), weight: 3 },
-];
-
-const THUMBNAIL = open("../videos/frame-thumbnail.jpg", "b");
+const seedManifest = {
+    project: PROJECT,
+    generatedAt: null,
+    userIds: [],
+    videosById: {},
+    videosByDuration: { 60: [], 180: [], 600: [], 2400: [] },
+    videoIds: [],
+    commentCount: 0,
+};
 
 export const options = {
     vus: 1,
@@ -27,135 +25,84 @@ export const options = {
     },
 };
 
-function url(path) {
-    return `${BASE_URL}${path}`;
-}
-
-function multipartParams() {
-    return {
-        headers: { Accept: "application/json" },
-        tags: { project: "Braulio", action: "bootstrap" },
-    };
-}
-
-function jsonParams() {
-    return {
-        headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-        },
-        tags: { project: "Braulio", action: "bootstrap" },
-    };
-}
-
-function parseJson(response) {
-    try {
-        return response.json();
-    } catch (error) {
-        return null;
+function recordUser(user) {
+    if (user && Number.isFinite(user.id)) {
+        seedManifest.userIds.push(user.id);
     }
 }
 
-function pickWeighted(index, items) {
-    const totalWeight = items.reduce((total, item) => total + item.weight, 0);
-    let cursor = index % totalWeight;
+function videoDuration(video, selection) {
+    return Number(video && (video.duration_seconds || video.durationSeconds || video.duration)) || selection.durationSeconds;
+}
 
-    for (const item of items) {
-        cursor -= item.weight;
-        if (cursor < 0) {
-            return item;
-        }
+function recordVideo(video, selection) {
+    if (!video || !Number.isFinite(video.id)) return;
+
+    const durationSeconds = videoDuration(video, selection);
+    seedManifest.videoIds.push(video.id);
+    seedManifest.videosById[String(video.id)] = {
+        id: video.id,
+        durationSeconds,
+        title: video.title || null,
+    };
+
+    const bucket = String(durationSeconds);
+    if (!seedManifest.videosByDuration[bucket]) {
+        seedManifest.videosByDuration[bucket] = [];
     }
-
-    return items[items.length - 1];
-}
-
-function createUser(index) {
-    const response = http.post(
-        url("/users"),
-        {
-            display_name: `user-${index}`,
-            provider: "local",
-            provider_subject: `user-${index}`,
-            email: `user-${index}@example.test`,
-            avatar: http.file(`avatar-${index}`, `avatar-${index}.jpg`, "image/jpeg"),
-        },
-        multipartParams(),
-    );
-
-    check(response, {
-        "bootstrap user created": (r) => r.status === 200,
-    });
-
-    const body = response.status === 200 ? parseJson(response) : null;
-    return body && body.id ? body.id : null;
-}
-
-function uploadVideo(index, userId) {
-    const selected = pickWeighted(index, VIDEO_FILES);
-    const response = http.post(
-        url("/videos/upload"),
-        {
-            title: `video-${index}`,
-            description: `description-${index}`,
-            uploader_id: userId,
-            file: http.file(selected.data, selected.filename, selected.contentType),
-            thumbnail: http.file(THUMBNAIL, `thumbnail-${index}.jpg`, "image/jpeg"),
-        },
-        multipartParams(),
-    );
-
-    check(response, {
-        "bootstrap video uploaded": (r) => r.status === 200,
-    });
-
-    const body = response.status === 200 ? parseJson(response) : null;
-    return body && body.id ? body.id : null;
-}
-
-function addComment(index, videoId) {
-    const response = http.post(
-        url(`/videos/${videoId}/comments`),
-        JSON.stringify({
-            author: `user-${index}`,
-            content: `comment-${index}`,
-        }),
-        jsonParams(),
-    );
-
-    check(response, {
-        "bootstrap comment created": (r) => r.status === 200,
-    });
+    seedManifest.videosByDuration[bucket].push(video.id);
 }
 
 export default function bootstrap() {
-    const userIds = [];
-    const videoIds = [];
+    seedManifest.generatedAt = new Date().toISOString();
 
     for (let index = 1; index <= USER_COUNT; index += 1) {
-        const userId = createUser(index);
-        if (userId) userIds.push(userId);
+        const user = actions.createUser({
+            displayName: `user-${index}`,
+            provider: "local",
+            providerSubject: `user-${index}`,
+            email: `user-${index}@example.test`,
+        });
+        recordUser(user);
         if (index % 250 === 0) console.log(`Created ${index}/${USER_COUNT} users`);
     }
 
-    if (userIds.length === 0) {
+    if (seedManifest.userIds.length === 0) {
         throw new Error("Bootstrap could not create users.");
     }
 
     for (let index = 1; index <= VIDEO_COUNT; index += 1) {
-        const userId = userIds[(index - 1) % userIds.length];
-        const videoId = uploadVideo(index, userId);
-        if (videoId) videoIds.push(videoId);
+        const userId = seedManifest.userIds[(index - 1) % seedManifest.userIds.length];
+        const videoSelection = actions.pickSeedVideoSelection(index);
+        const video = actions.uploadVideo({
+            userId,
+            title: `video-${index}`,
+            description: `description-${index}`,
+            videoSelection,
+        });
+        recordVideo(video, videoSelection);
         if (index % 50 === 0) console.log(`Uploaded ${index}/${VIDEO_COUNT} videos`);
     }
 
-    if (userIds.length === 0 || videoIds.length === 0) {
-        throw new Error("Bootstrap could not create enough users or videos to continue with comments.");
+    if (seedManifest.videoIds.length === 0) {
+        throw new Error("Bootstrap could not create enough videos to continue with comments.");
     }
 
     for (let index = 1; index <= COMMENT_COUNT; index += 1) {
-        const videoId = videoIds[(index - 1) % videoIds.length];
-        addComment(index, videoId);
+        const videoId = seedManifest.videoIds[(index - 1) % seedManifest.videoIds.length];
+        const comment = actions.addComment({
+            videoId,
+            author: `user-${index}`,
+            content: `comment-${index}`,
+        });
+        if (comment) seedManifest.commentCount += 1;
         if (index % 500 === 0) console.log(`Created ${index}/${COMMENT_COUNT} comments`);
     }
+}
+
+export function handleSummary() {
+    return {
+        "seed-manifest-braulio.json": JSON.stringify(seedManifest, null, 2),
+        stdout: `Seed manifest: ${seedManifest.userIds.length} users, ${seedManifest.videoIds.length} videos, ${seedManifest.commentCount} comments\n`,
+    };
 }

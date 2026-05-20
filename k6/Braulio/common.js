@@ -180,6 +180,20 @@ function selectionTemplateForDuration(durationSeconds) {
     return pickWeighted(candidates.length ? candidates : VIDEO_POOL);
 }
 
+function pickSeedVideoSelection(index) {
+    const totalWeight = VIDEO_POOL.reduce((total, video) => total + video.weight, 0);
+    let cursor = index % totalWeight;
+
+    for (const video of VIDEO_POOL) {
+        cursor -= video.weight;
+        if (cursor < 0) {
+            return video;
+        }
+    }
+
+    return VIDEO_POOL[VIDEO_POOL.length - 1];
+}
+
 function pickVideoSelectionByDurationMap() {
     const pickedDuration = pickWeighted(DURATION_BUCKETS).durationSeconds;
     const ids = VIDEO_IDS_BY_DURATION[String(pickedDuration)] || [];
@@ -532,6 +546,7 @@ function selectAction(params = {}) {
 }
 
 export default {
+    pickSeedVideoSelection,
     pickRandomUploadedVideoSelection,
     openMainPage,
     openUserPage,
