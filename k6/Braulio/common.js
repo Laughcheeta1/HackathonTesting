@@ -526,28 +526,13 @@ function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), 
     return response.status === 200 ? parseJson(response) : null;
 }
 
-function goDownPage({ offset = 20 } = {}) {
-    const videos = http.get(
-        url(`/videos?offset=${offset}&limit=20`),
-        requestParams("goDownPage", "loadMoreVideos"),
-    );
-    checkJson(videos, "load more videos response is valid", checker.checkVideoArrayResponse);
-    requestVideoThumbnails(getVisibleVideoThumbnailUrls(videos), "goDownPage");
-    requestUserAvatars(getVisibleUploaderAvatarUrls(videos), "goDownPage");
-}
-
-function goDownVideoReproductionPage({ seconds = 1 } = {}) {
-    sleep(seconds);
-}
-
 function selectAction(params = {}) {
     const actions = [
-        { weight: 34, run: () => openMainPage(params) },
+        { weight: 36, run: () => openMainPage(params) },
         { weight: 5, run: () => openUserPage(params) },
         { weight: 1, run: () => createUser(params) },
         { weight: 1, run: () => uploadVideo(params) },
-        { weight: 48, run: () => watchVideo(paramsWithVideoSelection(params)) },
-        { weight: 8, run: () => goDownPage(params) },
+        { weight: 52, run: () => watchVideo(paramsWithVideoSelection(params)) },
         { weight: 5, run: () => addComment(paramsWithVideoSelection(params)) },
     ];
     const totalWeight = actions.reduce((total, action) => total + action.weight, 0);
@@ -575,7 +560,5 @@ export default {
     uploadVideo,
     watchVideo,
     addComment,
-    goDownPage,
-    goDownVideoReproductionPage,
     selectAction,
 };

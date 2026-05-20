@@ -214,6 +214,7 @@ function resolveVideoSelection(videoId) {
     return pickWeighted(VIDEO_POOL);
 }
 
+// Verified
 function registerVideoIdForDuration(videoId, durationSeconds) {
     const ids = VIDEO_IDS_BY_DURATION[String(durationSeconds)];
     if (!ids.includes(videoId)) {
@@ -369,11 +370,13 @@ function headerValue(headers, name) {
     return found ? String(headers[found]) : "";
 }
 
+// verified
 function isVideoContentType(response) {
     const contentType = headerValue(response.headers, "Content-Type").toLowerCase();
     return contentType.includes("video/") || contentType.includes("application/octet-stream");
 }
 
+// Verified
 function checkVideoChunk(response) {
     check(response, {
         "stream chunk has media status": (r) => r.status === 200 || r.status === 206 || r.status === 416,
@@ -527,6 +530,8 @@ function createUser({
     return createdUser;
 }
 
+
+// Verified
 function uploadVideo({
     userId,
     token,
@@ -555,6 +560,7 @@ function uploadVideo({
     return createdVideo;
 }
 
+// Verified
 function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), chunkSeconds = STREAM_CHUNK_SECONDS } = {}) {
     const [video, comments, recommended] = http.batch([
         ["GET", url(`/videos/${videoSelection.id}`), null, requestParams("watchVideo", "getVideo")],
@@ -613,6 +619,7 @@ function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), 
     }
 }
 
+// Verified
 function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), userId, token, content = randomString(40, 120) } = {}) {
     const response = http.post(
         url(`/videos/${videoSelection.id}/comments`),
@@ -630,41 +637,25 @@ function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), 
     return response.status === 200 ? parseJson(response) : null;
 }
 
-function goDownPage({ videoOffset = 20 } = {}) {
-    const videos = http.get(
-        url(`/videos?limit=20&offset=${videoOffset}`),
-        requestParams("goDownPage", "loadMoreVideos"),
-    );
-    checkJson(videos, "load more videos response is valid", checker.checkPaginatedVideoObjectResponse);
-    requestVideoThumbnails(getVisibleVideoThumbnailUrls(videos), "goDownPage");
-    requestUserAvatars(getVisibleUploaderAvatarUrls(videos), "goDownPage");
-}
-
-function goDownVideoReproductionPage({ seconds = 1 } = {}) {
-    sleep(seconds);
-}
-
 function selectAction(params = {}) {
-    const actions = [
-        { weight: 34, run: () => openMainPage(params) },
-        { weight: 5, run: () => openUserPage(params) },
-        { weight: 1, run: () => createUser(params) },
-        { weight: 1, run: () => uploadVideo(params) },
-        { weight: 48, run: () => watchVideo(paramsWithVideoSelection(params)) },
-        { weight: 8, run: () => goDownPage(params) },
-        { weight: 5, run: () => addComment(paramsWithVideoSelection(params)) },
-    ];
-    const totalWeight = actions.reduce((total, action) => total + action.weight, 0);
-    let cursor = Math.random() * totalWeight;
+    const probability = Math.random();
 
-    for (let index = 0; index < actions.length; index += 1) {
-        cursor -= actions[index].weight;
-        if (cursor < 0) {
-            return actions[index].run();
-        }
+    if (probability < 0.36) {
+        return openMainPage(params);
     }
-
-    return actions[actions.length - 1].run();
+    if (probability < 0.41) {
+        return openUserPage(params);
+    }
+    if (probability < 0.42) {
+        return createUser(params);
+    }
+    if (probability < 0.43) {
+        return uploadVideo(params);
+    }
+    if (probability < 0.95) {
+        return watchVideo(paramsWithVideoSelection(params));
+    }
+    return addComment(paramsWithVideoSelection(params));
 }
 
 export default {
@@ -680,7 +671,5 @@ export default {
     uploadVideo,
     watchVideo,
     addComment,
-    goDownPage,
-    goDownVideoReproductionPage,
     selectAction,
 };
