@@ -174,9 +174,9 @@ The synthetic dataset includes:
 
 - users
 - user identities / provider subjects where required
-- videos
+- 6 videos, one for each fixture in the upload pool
 - video files and thumbnails
-- comments
+- 1000 comments distributed across the seeded videos
 - subscriptions
 
 Seeded values can be simple and deterministic, such as:
@@ -188,9 +188,26 @@ Seeded values can be simple and deterministic, such as:
 
 The content does not need to be realistic text. It only needs to satisfy backend validation and create realistic enough database shape and media load.
 
+Bootstrap is also responsible for writing a seed manifest for the matching project:
+
+- Braulio: `k6/Braulio/seed-manifest-braulio.json`
+- Cristobal: `k6/Cristobal/seed-manifest-cristobal.json`
+- German: `k6/German/seed-manifest-german.json`
+
+The manifest records:
+
+- exact created `userIds`
+- exact created `videoIds`
+- video metadata by ID
+- video IDs bucketed by duration
+- created comment count
+- German auth metadata showing seeded users authenticate through `/auth/token`
+
+All stress, spike, soak, and load tests must load this manifest before running. They must not assume users were created as contiguous IDs such as `1..3000`; that assumption breaks when the database is not empty and is especially unsafe for German because JWTs are generated from the selected user ID.
+
 ## User Identity Model
 
-Each K6 virtual user maps to one seeded user ID.
+Each K6 virtual user maps to one seeded user ID from the bootstrap manifest.
 
 This matters because user-dependent actions should not use hidden defaults. The action should receive the seeded `userId` explicitly.
 

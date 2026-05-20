@@ -194,6 +194,56 @@ function pickSeedVideoSelection(index) {
     return VIDEO_POOL[VIDEO_POOL.length - 1];
 }
 
+function loadSeedManifest(path = "./seed-manifest-braulio.json") {
+    let manifest;
+    try {
+        manifest = JSON.parse(open(path));
+    } catch (error) {
+        throw new Error(`Could not load Braulio seed manifest at ${path}. Run bootstrap first from the repo root so it writes k6/Braulio/seed-manifest-braulio.json, or pass SEED_MANIFEST=<path>.`);
+    }
+
+    if (!manifest) {
+        throw new Error("Braulio seed manifest is empty. Re-run bootstrap against a clean seeded database.");
+    }
+
+    manifest.userIds = Array.isArray(manifest.userIds) ? manifest.userIds.map(Number).filter(Number.isFinite) : [];
+    manifest.videoIds = Array.isArray(manifest.videoIds) ? manifest.videoIds.map(Number).filter(Number.isFinite) : [];
+
+    if (manifest.userIds.length === 0) {
+        throw new Error("Braulio seed manifest is missing userIds. Re-run bootstrap against a clean seeded database.");
+    }
+    if (manifest.videoIds.length === 0) {
+        throw new Error("Braulio seed manifest is missing videoIds. Re-run bootstrap so watch/comment actions have seeded videos.");
+    }
+
+    Object.values(manifest.videosById || {}).forEach((video) => {
+        registerVideoIdForDuration(Number(video.id), Number(video.durationSeconds));
+    });
+    Object.entries(manifest.videosByDuration || {}).forEach(([durationSeconds, ids]) => {
+        if (Array.isArray(ids)) {
+            ids.forEach((id) => registerVideoIdForDuration(Number(id), Number(durationSeconds)));
+        }
+    });
+
+    return manifest;
+}
+
+function seededUserIdForVu(seedManifest) {
+    const userIds = seedManifest.userIds;
+    return userIds[(__VU - 1) % userIds.length];
+}
+
+function pickSeededVideoSelection(seedManifest) {
+    const pickedDuration = pickWeighted(DURATION_BUCKETS).durationSeconds;
+    const bucketIds = (seedManifest.videosByDuration && seedManifest.videosByDuration[String(pickedDuration)]) || [];
+    const candidateIds = bucketIds.length > 0 ? bucketIds : seedManifest.videoIds;
+    const videoId = Number(candidateIds[randomInt(0, candidateIds.length - 1)]);
+    const video = (seedManifest.videosById && seedManifest.videosById[String(videoId)]) || {};
+    const durationSeconds = Number(video.durationSeconds) || pickedDuration;
+    const template = selectionTemplateForDuration(durationSeconds);
+    return { ...template, id: videoId, durationSeconds };
+}
+
 function pickVideoSelectionByDurationMap() {
     const pickedDuration = pickWeighted(DURATION_BUCKETS).durationSeconds;
     const ids = VIDEO_IDS_BY_DURATION[String(pickedDuration)] || [];
@@ -546,7 +596,10 @@ function selectAction(params = {}) {
 }
 
 export default {
+    loadSeedManifest,
+    seededUserIdForVu,
     pickSeedVideoSelection,
+    pickSeededVideoSelection,
     pickRandomUploadedVideoSelection,
     openMainPage,
     openUserPage,

@@ -5,7 +5,10 @@
 - When matching frontend behavior, do not cap media/image fetches with synthetic limits. If the UI renders N cards from a response, simulate the corresponding thumbnail/avatar requests for all rendered items unless the frontend itself enforces a limit.
 - Mirror frontend concurrency: if the UI issues requests in parallel (`Promise.all`, concurrent React Query hooks), model the same phase with `http.batch` in K6 instead of serial calls.
 - Keep K6 bootstrap scripts on the same shared action helpers as the runtime tests. Do not duplicate endpoint construction or request logic in `bootstrap.js`, because drift there can seed data through a different API path than the frontend simulation uses.
+- Bootstrap must persist the exact created user/video IDs and runtime tests must consume that seed manifest. Do not assume seeded users are contiguous IDs such as `1..3000`, especially for JWT-authenticated projects.
 - When changing a function that has a manual `verified`/`reviewed` marker, remove that marker so the user can re-review the changed function.
 
 # CRITICAL
-You can run `k6 inspect ...`, but only one file at a time, otherwise it will crash WSL.
+NEVER RUN K6
+
+Do not run `k6 run`, `k6 inspect`, or any other k6 command in this repo. Use static checks only unless the user explicitly provides a separate safe runtime and overrides this rule.

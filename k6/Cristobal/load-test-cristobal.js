@@ -5,8 +5,8 @@ import actions from "./common.js";
 
 const PROJECT = "Cristobal";
 const HEALTH_URL = "http://localhost:8000/health";
-const SEEDED_USER_COUNT = 3000;
-const MAX_USERS = 100; // Replace with the stress-test breaking point.
+const SEED_MANIFEST = actions.loadSeedManifest(__ENV.SEED_MANIFEST || "./seed-manifest-cristobal.json");
+const MAX_USERS = Number(__ENV.MAX_USERS) > 0 ? Number(__ENV.MAX_USERS) : 100;
 const NORMAL_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.50));
 const SPIKE_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.85));
 
@@ -42,12 +42,15 @@ export const options = {
 };
 
 export function runAction() {
-    actions.selectAction({ userId: currentUserId() });
+    actions.selectAction({
+        userId: currentUserId(),
+        pickVideoSelection: () => actions.pickSeededVideoSelection(SEED_MANIFEST),
+    });
     sleep(1);
 }
 
 function currentUserId() {
-    return ((__VU - 1) % SEEDED_USER_COUNT) + 1;
+    return actions.seededUserIdForVu(SEED_MANIFEST);
 }
 
 export function healthCheck() {

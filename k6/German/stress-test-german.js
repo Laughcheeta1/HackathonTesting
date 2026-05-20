@@ -5,7 +5,7 @@ import actions from "./common.js";
 
 const PROJECT = "German";
 const HEALTH_URL = "http://localhost/api/health";
-const SEEDED_USER_COUNT = 3000;
+const SEED_MANIFEST = actions.loadSeedManifest(__ENV.SEED_MANIFEST || "./seed-manifest-german.json");
 let cachedUserContext;
 
 export const healthFailures = new Rate("health_failures");
@@ -44,14 +44,14 @@ export const options = {
 export function runAction() {
     actions.selectAction({
         ...currentUserContext(),
-        pickVideoSelection: actions.pickRandomUploadedVideoSelection,
+        pickVideoSelection: () => actions.pickSeededVideoSelection(SEED_MANIFEST),
     });
     sleep(1);
 }
 
 function currentUserContext() {
     if (!cachedUserContext) {
-        const userId = ((__VU - 1) % SEEDED_USER_COUNT) + 1;
+        const userId = actions.seededUserIdForVu(SEED_MANIFEST);
         cachedUserContext = {
             userId,
             token: actions.getAuthToken(userId, "vuAuth"),

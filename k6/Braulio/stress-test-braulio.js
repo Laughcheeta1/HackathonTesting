@@ -5,7 +5,7 @@ import actions from "./common.js";
 
 const PROJECT = "Braulio";
 const HEALTH_URL = "http://localhost/api/health";
-const SEEDED_USER_COUNT = 3000;
+const SEED_MANIFEST = actions.loadSeedManifest(__ENV.SEED_MANIFEST || "./seed-manifest-braulio.json");
 
 export const healthFailures = new Rate("health_failures");
 
@@ -38,13 +38,13 @@ export const options = {
 export function runAction() {
     actions.selectAction({
         userId: currentUserId(),
-        pickVideoSelection: actions.pickRandomUploadedVideoSelection,
+        pickVideoSelection: () => actions.pickSeededVideoSelection(SEED_MANIFEST),
     });
     sleep(1);
 }
 
 function currentUserId() {
-    return ((__VU - 1) % SEEDED_USER_COUNT) + 1;
+    return actions.seededUserIdForVu(SEED_MANIFEST);
 }
 
 export function healthCheck() {

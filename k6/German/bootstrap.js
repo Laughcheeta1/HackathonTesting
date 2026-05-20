@@ -2,8 +2,8 @@ import actions from "./common.js";
 
 const PROJECT = "German";
 const USER_COUNT = 3000;
-const VIDEO_COUNT = 500;
-const COMMENT_COUNT = 5000;
+const VIDEO_COUNT = 6;
+const COMMENT_COUNT = 1000;
 
 const seedManifest = {
     project: PROJECT,
@@ -95,7 +95,7 @@ export default function bootstrap() {
             videoSelection,
         });
         recordVideo(video, videoSelection);
-        if (index % 50 === 0) console.log(`Uploaded ${index}/${VIDEO_COUNT} videos`);
+        console.log(`Uploaded ${index}/${VIDEO_COUNT} videos`);
     }
 
     if (seedManifest.videoIds.length === 0) {
@@ -121,7 +121,7 @@ export default function bootstrap() {
 
 export function handleSummary() {
     return {
-        "seed-manifest-german.json": JSON.stringify(seedManifest, null, 2),
+        "k6/German/seed-manifest-german.json": JSON.stringify(seedManifest, null, 2),
         stdout: `Seed manifest: ${seedManifest.userIds.length} users, ${seedManifest.videoIds.length} videos, ${seedManifest.commentCount} comments\n`,
     };
 }

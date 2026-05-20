@@ -5,8 +5,8 @@ import actions from "./common.js";
 
 const PROJECT = "German";
 const HEALTH_URL = "http://localhost/api/health";
-const SEEDED_USER_COUNT = 3000;
-const MAX_USERS = 100; // Replace with the stress-test breaking point.
+const SEED_MANIFEST = actions.loadSeedManifest(__ENV.SEED_MANIFEST || "./seed-manifest-german.json");
+const MAX_USERS = Number(__ENV.MAX_USERS) > 0 ? Number(__ENV.MAX_USERS) : 100;
 const NORMAL_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.50));
 const SPIKE_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.85));
 let cachedUserContext;
@@ -43,13 +43,16 @@ export const options = {
 };
 
 export function runAction() {
-    actions.selectAction(currentUserContext());
+    actions.selectAction({
+        ...currentUserContext(),
+        pickVideoSelection: () => actions.pickSeededVideoSelection(SEED_MANIFEST),
+    });
     sleep(1);
 }
 
 function currentUserContext() {
     if (!cachedUserContext) {
-        const userId = ((__VU - 1) % SEEDED_USER_COUNT) + 1;
+        const userId = actions.seededUserIdForVu(SEED_MANIFEST);
         cachedUserContext = {
             userId,
             token: actions.getAuthToken(userId, "vuAuth"),
