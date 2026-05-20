@@ -427,6 +427,7 @@ function uploadVideo(
     return response.status === 200 ? parseJson(response) : null;
 }
 
+// Verified
 function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
     const videoSelection = pickVideoSelectionByDurationMap();
     const [video, comments, recommended] = http.batch([
