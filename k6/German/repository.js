@@ -1,43 +1,37 @@
-const videosByDuration = { 60: [], 180: [], 600: [], 2400: [] };
-let hydrated = false;
+class VideoRepository {
+    constructor() {
+        this.videosByDuration = { 60: [], 180: [], 600: [], 2400: [] };
+        this.hydrated = false;
+    }
 
-function resetVideos() {
-    videosByDuration[60] = [];
-    videosByDuration[180] = [];
-    videosByDuration[600] = [];
-    videosByDuration[2400] = [];
-    hydrated = false;
-}
+    resetVideos() {
+        this.videosByDuration[60] = [];
+        this.videosByDuration[180] = [];
+        this.videosByDuration[600] = [];
+        this.videosByDuration[2400] = [];
+        this.hydrated = false;
+    }
 
-function markHydrated() {
-    hydrated = true;
-}
+    markHydrated() {
+        this.hydrated = true;
+    }
 
-function isHydrated() {
-    return hydrated;
-}
+    isHydrated() {
+        return this.hydrated;
+    }
 
-function registerVideo(videoId, durationSeconds) {
-    const ids = videosByDuration[durationSeconds];
-    if (!ids) return;
-    if (!ids.includes(videoId)) {
-        ids.push(videoId);
+    registerVideo(videoId, durationSeconds) {
+        const ids = this.videosByDuration[durationSeconds];
+        if (!ids) return;
+        if (!ids.includes(videoId)) ids.push(videoId);
+    }
+
+    getRandomVideoId(durationSeconds) {
+        const ids = this.videosByDuration[durationSeconds] || [];
+        if (ids.length === 0) return null;
+        const index = Math.floor(Math.random() * ids.length);
+        return ids[index];
     }
 }
 
-function getVideoIdsForDuration(durationSeconds) {
-    return videosByDuration[durationSeconds] || [];
-}
-
-function hasVideos() {
-    return Object.values(videosByDuration).some((ids) => ids.length > 0);
-}
-
-export default {
-    resetVideos,
-    markHydrated,
-    isHydrated,
-    registerVideo,
-    getVideoIdsForDuration,
-    hasVideos,
-};
+export default new VideoRepository();

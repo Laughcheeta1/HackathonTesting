@@ -2,8 +2,14 @@ import actions from "./common.js";
 import repository from "./repository.js";
 
 const USER_COUNT = 3000;
-const VIDEO_COUNT = 6;
+const VIDEO_COUNT = 50;
 const COMMENT_COUNT = 1000;
+const UPLOAD_PLAN = [
+    { seedIndex: 1, count: 23 },   // 60s  (45%)
+    { seedIndex: 46, count: 18 },  // 180s (36%)
+    { seedIndex: 82, count: 8 },   // 600s (16%)
+    { seedIndex: 98, count: 1 },   // 2400s (3%)
+];
 
 export const options = {
     vus: 1,
@@ -31,16 +37,28 @@ export function seedData() {
     }
 
     repository.resetVideos();
-    for (let index = 1; index <= VIDEO_COUNT; index += 1) {
-        const userId = userIds[(index - 1) % userIds.length];
-        const videoSelection = actions.pickSeedVideoSelection(index);
-        const video = actions.uploadVideo(userId, "", `video-${index}`, `description-${index}`, "music", videoSelection);
+    let uploadedCount = 0;
+    UPLOAD_PLAN.forEach(({ seedIndex, count }) => {
+        for (let planIndex = 0; planIndex < count; planIndex += 1) {
+            if (uploadedCount >= VIDEO_COUNT) break;
+            const userId = userIds[uploadedCount % userIds.length];
+            const videoSelection = actions.pickSeedVideoSelection(seedIndex);
+            const video = actions.uploadVideo(
+                userId,
+                "",
+                `video-${uploadedCount + 1}`,
+                `description-${uploadedCount + 1}`,
+                "music",
+                videoSelection,
+            );
 
-        if (!video) continue;
-        repository.registerVideo(video.id, videoSelection.durationSeconds);
-    }
+            if (!video) continue;
+            repository.registerVideo(video.id, videoSelection.durationSeconds);
+            uploadedCount += 1;
+        }
+    });
 
-    if (!repository.hasVideos()) {
+    if (uploadedCount === 0) {
         throw new Error("Bootstrap could not create enough videos to continue with comments.");
     }
 

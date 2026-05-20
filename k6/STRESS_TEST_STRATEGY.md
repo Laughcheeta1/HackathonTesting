@@ -174,7 +174,7 @@ The synthetic dataset includes:
 
 - users
 - user identities / provider subjects where required
-- 6 videos, one for each fixture in the upload pool
+- 50 videos seeded from the fixture pool using the configured duration proportions
 - video files and thumbnails
 - 1000 comments distributed across the seeded videos
 - subscriptions

@@ -10,11 +10,9 @@ const STREAM_RANGE_WINDOW_BYTES = 1024 * 1024;
 
 const VIDEO_POOL = [
     { id: 1, filename: "one-minute.mp4", durationSeconds: 60, weight: 45, contentType: "video/mp4", data: open("../videos/one-minute.mp4", "b") },
-    { id: 2, filename: "three-minute-a.mp4", durationSeconds: 180, weight: 18, contentType: "video/mp4", data: open("../videos/three-minute-a.mp4", "b") },
-    { id: 3, filename: "three-minute-b.mp4", durationSeconds: 180, weight: 18, contentType: "video/mp4", data: open("../videos/three-minute-b.mp4", "b") },
-    { id: 4, filename: "ten-minute-a.mp4", durationSeconds: 600, weight: 8, contentType: "video/mp4", data: open("../videos/ten-minute-a.mp4", "b") },
-    { id: 5, filename: "ten-minute-b.mp4", durationSeconds: 600, weight: 8, contentType: "video/mp4", data: open("../videos/ten-minute-b.mp4", "b") },
-    { id: 6, filename: "forty-minute.mp4", durationSeconds: 2400, weight: 3, contentType: "video/mp4", data: open("../videos/forty-minute.mp4", "b") },
+    { id: 2, filename: "three-minute-a.mp4", durationSeconds: 180, weight: 36, contentType: "video/mp4", data: open("../videos/three-minute-a.mp4", "b") },
+    { id: 3, filename: "ten-minute-a.mp4", durationSeconds: 600, weight: 16, contentType: "video/mp4", data: open("../videos/ten-minute-a.mp4", "b") },
+    { id: 4, filename: "forty-minute.mp4", durationSeconds: 2400, weight: 3, contentType: "video/mp4", data: open("../videos/forty-minute.mp4", "b") },
 ];
 const GENERATED_FRAME_THUMBNAIL = open("../videos/frame-thumbnail.jpg", "b");
 
@@ -113,23 +111,20 @@ function randomName() {
     return randomString(12, 24);
 }
 
-function pickWeighted(items) {
-    const totalWeight = items.reduce((total, item) => total + item.weight, 0);
-    let cursor = Math.random() * totalWeight;
-
-    for (let index = 0; index < items.length; index += 1) {
-        cursor -= items[index].weight;
-        if (cursor < 0) {
-            return items[index];
-        }
-    }
-
-    return items[items.length - 1];
+function pickVideoTemplate() {
+    const probability = Math.random();
+    if (probability < 0.45) return VIDEO_POOL[0];
+    if (probability < 0.81) return VIDEO_POOL[1];
+    if (probability < 0.97) return VIDEO_POOL[2];
+    return VIDEO_POOL[3];
 }
 
 function selectionTemplateForDuration(durationSeconds) {
-    const candidates = VIDEO_POOL.filter((video) => video.durationSeconds === durationSeconds);
-    return pickWeighted(candidates.length ? candidates : VIDEO_POOL);
+    if (durationSeconds === 60) return VIDEO_POOL[0];
+    if (durationSeconds === 180) return VIDEO_POOL[1];
+    if (durationSeconds === 600) return VIDEO_POOL[2];
+    if (durationSeconds === 2400) return VIDEO_POOL[3];
+    return pickVideoTemplate();
 }
 
 function pickSeedVideoSelection(index) {
@@ -163,21 +158,16 @@ function pickWeightedDurationSeconds() {
 
 function pickVideoSelectionByDurationMap() {
     const pickedDuration = pickWeightedDurationSeconds();
-    const ids = repository.getVideoIdsForDuration(pickedDuration);
-    if (ids.length > 0) {
-        const template = selectionTemplateForDuration(pickedDuration);
-        return {
-            ...template,
-            id: ids[randomInt(0, ids.length - 1)],
-            durationSeconds: pickedDuration,
-        };
+    const videoId = repository.getRandomVideoId(pickedDuration);
+    if (videoId) {
+        return { id: videoId, durationSeconds: pickedDuration };
     }
     return pickRandomUploadedVideoSelection();
 }
 
 function selectionForUploadedVideo(video) {
-    const template = pickWeighted(VIDEO_POOL);
-    return { ...template, id: video.id };
+    const template = pickVideoTemplate();
+    return { id: video.id, durationSeconds: template.durationSeconds };
 }
 
 function pickRandomUploadedVideoSelection() {
@@ -194,7 +184,7 @@ function pickRandomUploadedVideoSelection() {
         }
     }
 
-    return pickWeighted(VIDEO_POOL);
+    return pickVideoTemplate();
 }
 
 function checkJson(response, name, validator) {
@@ -363,7 +353,7 @@ function uploadVideo(
     token,
     title = randomString(20, 45),
     description = randomString(120, 260),
-    videoSelection = pickWeighted(VIDEO_POOL),
+    videoSelection = pickVideoTemplate(),
     videoFile = selectedVideoFile(videoSelection),
     thumbnail = generatedFrameThumbnail(),
 ) {
@@ -381,9 +371,6 @@ function uploadVideo(
     checkJson(response, "uploaded video response is valid", checker.checkVideoObject);
 
     const createdVideo = response.status === 200 ? parseJson(response) : null;
-    if (createdVideo) {
-        repository.registerVideo(createdVideo.id, videoSelection.durationSeconds);
-    }
 
     const refreshedVideos = http.get(
         url("/videos?offset=0&limit=20"),
@@ -453,10 +440,8 @@ function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
     }
 }
 
-function addComment(userId, token, content = randomString(40, 120), fixedVideoId = null, author = randomName()) {
-    const videoSelection = fixedVideoId
-        ? { ...pickWeighted(VIDEO_POOL), id: fixedVideoId }
-        : pickVideoSelectionByDurationMap();
+function addComment(userId, token, content = randomString(40, 120), author = randomName()) {
+    const videoSelection = pickVideoSelectionByDurationMap();
     const response = http.post(
         url(`/videos/${videoSelection.id}/comments`),
         JSON.stringify({ author, content }),
