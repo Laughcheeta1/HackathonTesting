@@ -2,10 +2,13 @@ import http from "k6/http";
 import { Rate } from "k6/metrics";
 import { sleep } from "k6";
 import actions from "./common.js";
+import { seedData } from "./bootstrap.js";
 
 const PROJECT = "Braulio";
 const HEALTH_URL = "http://localhost/api/health";
-const SEED_MANIFEST = actions.loadSeedManifest(__ENV.SEED_MANIFEST || "./seed-manifest-braulio.json");
+let repositoryInitialized = false;
+let cachedUserId;
+let cachedToken;
 const MAX_USERS = Number(__ENV.MAX_USERS) > 0 ? Number(__ENV.MAX_USERS) : 100;
 const MIN_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.01));
 const PEAK_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.95));
@@ -36,13 +39,27 @@ export const options = {
     },
 };
 
-export function runAction() {
-    actions.selectAction({ userId: currentUserId() });
-    sleep(1);
+export function setup() {
+    return seedData();
 }
 
-function currentUserId() {
-    return actions.seededUserIdForVu(SEED_MANIFEST);
+function ensureVuContext(authTuples) {
+    if (!repositoryInitialized) {
+        actions.hydrateRepositoryFromServer();
+        repositoryInitialized = true;
+    }
+
+    if (cachedUserId && cachedToken !== undefined) return;
+
+    const tuple = actions.seededUserContextForVu(authTuples);
+    cachedUserId = tuple[0];
+    cachedToken = tuple[1];
+}
+
+export function runAction(authTuples) {
+    ensureVuContext(authTuples);
+    actions.selectAction(cachedUserId, cachedToken);
+    sleep(1);
 }
 
 export function healthCheck() {

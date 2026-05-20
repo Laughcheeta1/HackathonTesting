@@ -1,19 +1,9 @@
 import actions from "./common.js";
+import repository from "./repository.js";
 
-const PROJECT = "Cristobal";
 const USER_COUNT = 3000;
 const VIDEO_COUNT = 6;
 const COMMENT_COUNT = 1000;
-
-const seedManifest = {
-    project: PROJECT,
-    generatedAt: null,
-    userIds: [],
-    videosById: {},
-    videosByDuration: { 60: [], 180: [], 600: [], 2400: [] },
-    videoIds: [],
-    commentCount: 0,
-};
 
 export const options = {
     vus: 1,
@@ -25,78 +15,46 @@ export const options = {
     },
 };
 
-function recordUser(user) {
-    if (user) {
-        seedManifest.userIds.push(user.id);
-    }
-}
-
-function recordVideo(video, selection) {
-    if (!video) return;
-
-    const durationSeconds = selection.durationSeconds;
-    seedManifest.videoIds.push(video.id);
-    seedManifest.videosById[String(video.id)] = {
-        id: video.id,
-        durationSeconds,
-        title: video.title || null,
-    };
-
-    const bucket = String(durationSeconds);
-    seedManifest.videosByDuration[bucket].push(video.id);
-}
-
-export default function bootstrap() {
-    seedManifest.generatedAt = new Date().toISOString();
+export function seedData() {
+    const userIds = [];
+    const authTuples = [];
 
     for (let index = 1; index <= USER_COUNT; index += 1) {
-        const user = actions.createUser({
-            displayName: `user-${index}`,
-            provider: "local",
-            providerSubject: `user-${index}`,
-            email: `user-${index}@example.test`,
-        });
-        recordUser(user);
-        if (index % 250 === 0) console.log(`Created ${index}/${USER_COUNT} users`);
+        const user = actions.createUser(`user-${index}`, "local", `user-${index}`, `user-${index}@example.test`);
+        if (!user) continue;
+        userIds.push(user.id);
+        authTuples.push([user.id, ""]);
     }
 
-    if (seedManifest.userIds.length === 0) {
+    if (userIds.length === 0) {
         throw new Error("Bootstrap could not create users.");
     }
 
+    repository.resetVideos();
     for (let index = 1; index <= VIDEO_COUNT; index += 1) {
-        const userId = seedManifest.userIds[(index - 1) % seedManifest.userIds.length];
+        const userId = userIds[(index - 1) % userIds.length];
         const videoSelection = actions.pickSeedVideoSelection(index);
-        const video = actions.uploadVideo({
-            userId,
-            title: `video-${index}`,
-            description: `description-${index}`,
-            category: "music",
-            videoSelection,
-        });
-        recordVideo(video, videoSelection);
-        console.log(`Uploaded ${index}/${VIDEO_COUNT} videos`);
+        const video = actions.uploadVideo(userId, "", `video-${index}`, `description-${index}`, "music", videoSelection);
+
+        if (!video) continue;
+        repository.registerVideo(video.id, videoSelection.durationSeconds);
     }
 
-    if (seedManifest.videoIds.length === 0) {
+    if (!repository.hasVideos()) {
         throw new Error("Bootstrap could not create enough videos to continue with comments.");
     }
 
+    let commentCount = 0;
     for (let index = 1; index <= COMMENT_COUNT; index += 1) {
-        const videoId = seedManifest.videoIds[(index - 1) % seedManifest.videoIds.length];
-        const comment = actions.addComment({
-            videoId,
-            author: `user-${index}`,
-            content: `comment-${index}`,
-        });
-        if (comment) seedManifest.commentCount += 1;
-        if (index % 500 === 0) console.log(`Created ${index}/${COMMENT_COUNT} comments`);
+        const tuple = authTuples[(index - 1) % authTuples.length];
+        const comment = actions.addComment(tuple[0], tuple[1], `comment-${index}`);
+        if (comment) commentCount += 1;
     }
+
+    console.log(`Seeded users=${authTuples.length}, comments=${commentCount}`);
+    return authTuples;
 }
 
-export function handleSummary() {
-    return {
-        "k6/Cristobal/seed-manifest-cristobal.json": JSON.stringify(seedManifest, null, 2),
-        stdout: `Seed manifest: ${seedManifest.userIds.length} users, ${seedManifest.videoIds.length} videos, ${seedManifest.commentCount} comments\n`,
-    };
+export default function bootstrap() {
+    return seedData();
 }

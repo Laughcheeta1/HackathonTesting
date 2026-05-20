@@ -1,6 +1,7 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
 import checker from "./utils.js";
+import repository from "./repository.js";
 
 const BASE_URL = "http://localhost/api";
 const PROJECT = "Braulio";
@@ -15,8 +16,6 @@ const VIDEO_POOL = [
     { id: 5, filename: "ten-minute-b.mp4", durationSeconds: 600, weight: 8, contentType: "video/mp4", data: open("../videos/ten-minute-b.mp4", "b") },
     { id: 6, filename: "forty-minute.mp4", durationSeconds: 2400, weight: 3, contentType: "video/mp4", data: open("../videos/forty-minute.mp4", "b") },
 ];
-const VIDEO_IDS_BY_DURATION = { 60: [], 180: [], 600: [], 2400: [] };
-
 const GENERATED_FRAME_THUMBNAIL = open("../videos/frame-thumbnail.jpg", "b");
 
 function url(path) {
@@ -128,13 +127,6 @@ function pickWeighted(items) {
     return items[items.length - 1];
 }
 
-function registerVideoIdForDuration(videoId, durationSeconds) {
-    const ids = VIDEO_IDS_BY_DURATION[String(durationSeconds)];
-    if (!ids.includes(videoId)) {
-        ids.push(videoId);
-    }
-}
-
 function selectionTemplateForDuration(durationSeconds) {
     const candidates = VIDEO_POOL.filter((video) => video.durationSeconds === durationSeconds);
     return pickWeighted(candidates.length ? candidates : VIDEO_POOL);
@@ -154,40 +146,11 @@ function pickSeedVideoSelection(index) {
     return VIDEO_POOL[VIDEO_POOL.length - 1];
 }
 
-function loadSeedManifest(path = "./seed-manifest-braulio.json") {
-    let manifest;
-    try {
-        manifest = JSON.parse(open(path));
-    } catch (error) {
-        throw new Error(`Could not load Braulio seed manifest at ${path}. Run bootstrap first from the repo root so it writes k6/Braulio/seed-manifest-braulio.json, or pass SEED_MANIFEST=<path>.`);
+function seededUserContextForVu(authTuples) {
+    if (!Array.isArray(authTuples) || authTuples.length === 0) {
+        throw new Error("No seeded auth tuples were provided by setup().");
     }
-
-    if (!manifest) {
-        throw new Error("Braulio seed manifest is empty. Re-run bootstrap against a clean seeded database.");
-    }
-
-    manifest.userIds = Array.isArray(manifest.userIds) ? manifest.userIds.map(Number) : [];
-    manifest.videoIds = Array.isArray(manifest.videoIds) ? manifest.videoIds.map(Number) : [];
-
-    if (manifest.userIds.length === 0) {
-        throw new Error("Braulio seed manifest is missing userIds. Re-run bootstrap against a clean seeded database.");
-    }
-    if (manifest.videoIds.length === 0) {
-        throw new Error("Braulio seed manifest is missing videoIds. Re-run bootstrap so watch/comment actions have seeded videos.");
-    }
-
-    Object.entries(manifest.videosByDuration || {}).forEach(([durationSeconds, ids]) => {
-        if (Array.isArray(ids)) {
-            ids.forEach((id) => registerVideoIdForDuration(Number(id), Number(durationSeconds)));
-        }
-    });
-
-    return manifest;
-}
-
-function seededUserIdForVu(seedManifest) {
-    const userIds = seedManifest.userIds;
-    return userIds[(__VU - 1) % userIds.length];
+    return authTuples[(__VU - 1) % authTuples.length];
 }
 
 function pickWeightedDurationSeconds() {
@@ -200,7 +163,7 @@ function pickWeightedDurationSeconds() {
 
 function pickVideoSelectionByDurationMap() {
     const pickedDuration = pickWeightedDurationSeconds();
-    const ids = VIDEO_IDS_BY_DURATION[String(pickedDuration)] || [];
+    const ids = repository.getVideoIdsForDuration(pickedDuration);
     if (ids.length > 0) {
         const template = selectionTemplateForDuration(pickedDuration);
         return {
@@ -317,7 +280,7 @@ function requestUserAvatars(avatarUrls, action) {
     });
 }
 
-function openMainPage({ userId } = {}) {
+function openMainPage(userId) {
     const [videos, users, providers, subscriptions] = http.batch([
         ["GET", url("/videos?offset=0&limit=20"), null, requestParams("openMainPage", "listVideos")],
         ["GET", url("/users"), null, requestParams("openMainPage", "listUsers")],
@@ -339,7 +302,7 @@ function openMainPage({ userId } = {}) {
     ], "openMainPage");
 }
 
-function openUserPage({ userId } = {}) {
+function openUserPage(userId) {
     const [users, providers, subscriptions] = http.batch([
         ["GET", url("/users"), null, requestParams("openUserPage", "listUsers")],
         ["GET", url("/users/providers"), null, requestParams("openUserPage", "listProviders")],
@@ -356,13 +319,13 @@ function openUserPage({ userId } = {}) {
     ], "openUserPage");
 }
 
-function createUser({
+function createUser(
     displayName = randomName(),
     provider = "local",
     providerSubject = `k6-user-${__VU}-${__ITER}-${Date.now()}`,
     email = `k6-user-${__VU}-${__ITER}-${Date.now()}@example.test`,
     avatar = defaultFile("avatar.jpg", "image/jpeg"),
-} = {}) {
+) {
     const response = http.post(
         url("/users"),
         {
@@ -395,14 +358,15 @@ function createUser({
     return createdUser;
 }
 
-function uploadVideo({
+function uploadVideo(
     userId,
+    token,
     title = randomString(20, 45),
     description = randomString(120, 260),
     videoSelection = pickWeighted(VIDEO_POOL),
     videoFile = selectedVideoFile(videoSelection),
     thumbnail = generatedFrameThumbnail(),
-} = {}) {
+) {
     const response = http.post(
         url("/videos/upload"),
         {
@@ -418,7 +382,7 @@ function uploadVideo({
 
     const createdVideo = response.status === 200 ? parseJson(response) : null;
     if (createdVideo) {
-        registerVideoIdForDuration(createdVideo.id, videoSelection.durationSeconds);
+        repository.registerVideo(createdVideo.id, videoSelection.durationSeconds);
     }
 
     const refreshedVideos = http.get(
@@ -430,7 +394,7 @@ function uploadVideo({
     return createdVideo;
 }
 
-function watchVideo({ chunkSeconds = STREAM_CHUNK_SECONDS } = {}) {
+function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
     const videoSelection = pickVideoSelectionByDurationMap();
     const [video, comments, recommended] = http.batch([
         ["GET", url(`/videos/${videoSelection.id}`), null, requestParams("watchVideo", "getVideo")],
@@ -489,8 +453,10 @@ function watchVideo({ chunkSeconds = STREAM_CHUNK_SECONDS } = {}) {
     }
 }
 
-function addComment({ author = randomName(), content = randomString(40, 120) } = {}) {
-    const videoSelection = pickVideoSelectionByDurationMap();
+function addComment(userId, token, content = randomString(40, 120), fixedVideoId = null, author = randomName()) {
+    const videoSelection = fixedVideoId
+        ? { ...pickWeighted(VIDEO_POOL), id: fixedVideoId }
+        : pickVideoSelectionByDurationMap();
     const response = http.post(
         url(`/videos/${videoSelection.id}/comments`),
         JSON.stringify({ author, content }),
@@ -507,31 +473,56 @@ function addComment({ author = randomName(), content = randomString(40, 120) } =
     return response.status === 200 ? parseJson(response) : null;
 }
 
-function selectAction(params = {}) {
-    const actions = [
-        { weight: 36, run: () => openMainPage(params) },
-        { weight: 5, run: () => openUserPage(params) },
-        { weight: 1, run: () => createUser(params) },
-        { weight: 1, run: () => uploadVideo(params) },
-        { weight: 52, run: () => watchVideo(params) },
-        { weight: 5, run: () => addComment(params) },
-    ];
-    const totalWeight = actions.reduce((total, action) => total + action.weight, 0);
-    let cursor = Math.random() * totalWeight;
+function selectAction(userId, token) {
+    const probability = Math.random();
 
-    for (let index = 0; index < actions.length; index += 1) {
-        cursor -= actions[index].weight;
-        if (cursor < 0) {
-            return actions[index].run();
-        }
+    if (probability < 0.36) {
+        return openMainPage(userId);
     }
+    if (probability < 0.41) {
+        return openUserPage(userId);
+    }
+    if (probability < 0.42) {
+        return createUser();
+    }
+    if (probability < 0.43) {
+        return uploadVideo(userId, token);
+    }
+    if (probability < 0.95) {
+        return watchVideo();
+    }
+    return addComment(userId, token);
+}
 
-    return actions[actions.length - 1].run();
+function hydrateRepositoryFromServer() {
+    repository.resetVideos();
+    const pages = [
+        { durationSeconds: 60, offset: 0 },
+        { durationSeconds: 180, offset: 100 },
+        { durationSeconds: 600, offset: 200 },
+        { durationSeconds: 2400, offset: 300 },
+    ];
+
+    pages.forEach(({ durationSeconds, offset }) => {
+        const response = http.get(
+            url(`/videos?offset=${offset}&limit=100`),
+            requestParams("repositoryHydration", "listVideos"),
+        );
+        const body = parseJson(response);
+        const items = Array.isArray(body) ? body : [];
+        items.forEach((video) => {
+            if (video && video.id) {
+                repository.registerVideo(video.id, durationSeconds);
+            }
+        });
+    });
+
+    repository.markHydrated();
 }
 
 export default {
-    loadSeedManifest,
-    seededUserIdForVu,
+    seededUserContextForVu,
+    hydrateRepositoryFromServer,
     pickSeedVideoSelection,
     pickRandomUploadedVideoSelection,
     openMainPage,

@@ -2,10 +2,13 @@ import http from "k6/http";
 import { Rate } from "k6/metrics";
 import { sleep } from "k6";
 import actions from "./common.js";
+import { seedData } from "./bootstrap.js";
 
 const PROJECT = "Cristobal";
 const HEALTH_URL = "http://localhost:8000/health";
-const SEED_MANIFEST = actions.loadSeedManifest(__ENV.SEED_MANIFEST || "./seed-manifest-cristobal.json");
+let repositoryInitialized = false;
+let cachedUserId;
+let cachedToken;
 
 export const healthFailures = new Rate("health_failures");
 
@@ -35,13 +38,27 @@ export const options = {
     },
 };
 
-export function runAction() {
-    actions.selectAction({ userId: currentUserId() });
-    sleep(1);
+export function setup() {
+    return seedData();
 }
 
-function currentUserId() {
-    return actions.seededUserIdForVu(SEED_MANIFEST);
+function ensureVuContext(authTuples) {
+    if (!repositoryInitialized) {
+        actions.hydrateRepositoryFromServer();
+        repositoryInitialized = true;
+    }
+
+    if (cachedUserId && cachedToken !== undefined) return;
+
+    const tuple = actions.seededUserContextForVu(authTuples);
+    cachedUserId = tuple[0];
+    cachedToken = tuple[1];
+}
+
+export function runAction(authTuples) {
+    ensureVuContext(authTuples);
+    actions.selectAction(cachedUserId, cachedToken);
+    sleep(1);
 }
 
 export function healthCheck() {

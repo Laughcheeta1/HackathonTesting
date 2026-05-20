@@ -2,14 +2,16 @@ import http from "k6/http";
 import { Rate } from "k6/metrics";
 import { sleep } from "k6";
 import actions from "./common.js";
+import { seedData } from "./bootstrap.js";
 
 const PROJECT = "German";
 const HEALTH_URL = "http://localhost/api/health";
-const SEED_MANIFEST = actions.loadSeedManifest(__ENV.SEED_MANIFEST || "./seed-manifest-german.json");
+let repositoryInitialized = false;
+let cachedUserId;
+let cachedToken;
 const MAX_USERS = Number(__ENV.MAX_USERS) > 0 ? Number(__ENV.MAX_USERS) : 100;
 const NORMAL_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.50));
 const SPIKE_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.85));
-let cachedUserContext;
 
 export const healthFailures = new Rate("health_failures");
 
@@ -42,20 +44,27 @@ export const options = {
     },
 };
 
-export function runAction() {
-    actions.selectAction(currentUserContext());
-    sleep(1);
+export function setup() {
+    return seedData();
 }
 
-function currentUserContext() {
-    if (!cachedUserContext) {
-        const userId = actions.seededUserIdForVu(SEED_MANIFEST);
-        cachedUserContext = {
-            userId,
-            token: actions.getAuthToken(userId, "vuAuth"),
-        };
+function ensureVuContext(authTuples) {
+    if (!repositoryInitialized) {
+        actions.hydrateRepositoryFromServer();
+        repositoryInitialized = true;
     }
-    return cachedUserContext;
+
+    if (cachedUserId && cachedToken) return;
+
+    const tuple = actions.seededUserContextForVu(authTuples);
+    cachedUserId = tuple[0];
+    cachedToken = tuple[1];
+}
+
+export function runAction(authTuples) {
+    ensureVuContext(authTuples);
+    actions.selectAction(cachedUserId, cachedToken);
+    sleep(1);
 }
 
 export function healthCheck() {

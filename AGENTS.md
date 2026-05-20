@@ -5,11 +5,13 @@
 - When matching frontend behavior, do not cap media/image fetches with synthetic limits. If the UI renders N cards from a response, simulate the corresponding thumbnail/avatar requests for all rendered items unless the frontend itself enforces a limit.
 - Mirror frontend concurrency: if the UI issues requests in parallel (`Promise.all`, concurrent React Query hooks), model the same phase with `http.batch` in K6 instead of serial calls.
 - Keep K6 bootstrap scripts on the same shared action helpers as the runtime tests. Do not duplicate endpoint construction or request logic in `bootstrap.js`, because drift there can seed data through a different API path than the frontend simulation uses.
-- Bootstrap must persist the exact created user/video IDs and runtime tests must consume that seed manifest. Do not assume seeded users are contiguous IDs such as `1..3000`, especially for JWT-authenticated projects.
+- For clean-slate runs, prefer `setup()`-driven seeding and pass only the minimal VU auth context from setup (for German: `[userId, token]` tuples). Avoid reintroducing manifest persistence unless explicitly requested.
 - When changing a function that has a manual `verified`/`reviewed` marker, remove that marker so the user can re-review the changed function.
+- Keep `verified`/`reviewed` markers on untouched functions. Only remove markers from functions that were actually edited.
 - In K6 seed/runtime helpers, avoid defensive numeric validation such as `Number.isFinite` when the value is produced by the controlled bootstrap/test flow. Keep ID and duration handling direct unless the frontend/API contract requires normalization.
 - K6 video duration buckets are fixed to `60`, `180`, `600`, and `2400`. Do not infer alternative duration keys from API responses or create new `videosByDuration` / `VIDEO_IDS_BY_DURATION` keys dynamically.
 - Keep K6 action randomness internal to the action helpers. Do not pass video-selection callbacks or video IDs from scenario runners when the action can pick a seeded random target on its own.
+- In K6 action helpers, prefer positional parameters for core identity/auth inputs (for example `userId`, `token`) instead of loose object bags.
 
 # CRITICAL
 NEVER RUN K6
