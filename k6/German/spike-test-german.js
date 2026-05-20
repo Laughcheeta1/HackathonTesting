@@ -38,10 +38,7 @@ export const options = {
 };
 
 export function runAction() {
-    actions.selectAction({
-        ...currentUserContext(),
-        pickVideoSelection: () => actions.pickSeededVideoSelection(SEED_MANIFEST),
-    });
+    actions.selectAction(currentUserContext());
     sleep(1);
 }
 

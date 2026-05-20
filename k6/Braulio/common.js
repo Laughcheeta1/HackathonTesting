@@ -15,12 +15,6 @@ const VIDEO_POOL = [
     { id: 5, filename: "ten-minute-b.mp4", durationSeconds: 600, weight: 8, contentType: "video/mp4", data: open("../videos/ten-minute-b.mp4", "b") },
     { id: 6, filename: "forty-minute.mp4", durationSeconds: 2400, weight: 3, contentType: "video/mp4", data: open("../videos/forty-minute.mp4", "b") },
 ];
-const DURATION_BUCKETS = [
-    { durationSeconds: 60, weight: 45 },
-    { durationSeconds: 180, weight: 36 },
-    { durationSeconds: 600, weight: 16 },
-    { durationSeconds: 2400, weight: 3 },
-];
 const VIDEO_IDS_BY_DURATION = { 60: [], 180: [], 600: [], 2400: [] };
 
 const GENERATED_FRAME_THUMBNAIL = open("../videos/frame-thumbnail.jpg", "b");
@@ -134,13 +128,6 @@ function pickWeighted(items) {
     return items[items.length - 1];
 }
 
-function resolveVideoSelection(videoId) {
-    if (videoId) {
-        return VIDEO_POOL.find((video) => video.id === videoId) || VIDEO_POOL[0];
-    }
-    return pickWeighted(VIDEO_POOL);
-}
-
 function registerVideoIdForDuration(videoId, durationSeconds) {
     const ids = VIDEO_IDS_BY_DURATION[String(durationSeconds)];
     if (!ids.includes(videoId)) {
@@ -203,17 +190,16 @@ function seededUserIdForVu(seedManifest) {
     return userIds[(__VU - 1) % userIds.length];
 }
 
-function pickSeededVideoSelection(seedManifest) {
-    const pickedDuration = pickWeighted(DURATION_BUCKETS).durationSeconds;
-    const bucketIds = (seedManifest.videosByDuration && seedManifest.videosByDuration[String(pickedDuration)]) || [];
-    const candidateIds = bucketIds.length > 0 ? bucketIds : seedManifest.videoIds;
-    const videoId = Number(candidateIds[randomInt(0, candidateIds.length - 1)]);
-    const template = selectionTemplateForDuration(pickedDuration);
-    return { ...template, id: videoId, durationSeconds: pickedDuration };
+function pickWeightedDurationSeconds() {
+    const probability = Math.random();
+    if (probability < 0.45) return 60;
+    if (probability < 0.81) return 180;
+    if (probability < 0.97) return 600;
+    return 2400;
 }
 
 function pickVideoSelectionByDurationMap() {
-    const pickedDuration = pickWeighted(DURATION_BUCKETS).durationSeconds;
+    const pickedDuration = pickWeightedDurationSeconds();
     const ids = VIDEO_IDS_BY_DURATION[String(pickedDuration)] || [];
     if (ids.length > 0) {
         const template = selectionTemplateForDuration(pickedDuration);
@@ -246,13 +232,6 @@ function pickRandomUploadedVideoSelection() {
     }
 
     return pickWeighted(VIDEO_POOL);
-}
-
-function paramsWithVideoSelection(params) {
-    if (typeof params.pickVideoSelection === "function") {
-        return { ...params, videoSelection: params.pickVideoSelection() };
-    }
-    return { ...params, videoSelection: pickVideoSelectionByDurationMap() };
 }
 
 function checkJson(response, name, validator) {
@@ -451,7 +430,8 @@ function uploadVideo({
     return createdVideo;
 }
 
-function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), chunkSeconds = STREAM_CHUNK_SECONDS } = {}) {
+function watchVideo({ chunkSeconds = STREAM_CHUNK_SECONDS } = {}) {
+    const videoSelection = pickVideoSelectionByDurationMap();
     const [video, comments, recommended] = http.batch([
         ["GET", url(`/videos/${videoSelection.id}`), null, requestParams("watchVideo", "getVideo")],
         ["GET", url(`/videos/${videoSelection.id}/comments`), null, requestParams("watchVideo", "listComments")],
@@ -509,7 +489,8 @@ function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), 
     }
 }
 
-function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), author = randomName(), content = randomString(40, 120) } = {}) {
+function addComment({ author = randomName(), content = randomString(40, 120) } = {}) {
+    const videoSelection = pickVideoSelectionByDurationMap();
     const response = http.post(
         url(`/videos/${videoSelection.id}/comments`),
         JSON.stringify({ author, content }),
@@ -532,8 +513,8 @@ function selectAction(params = {}) {
         { weight: 5, run: () => openUserPage(params) },
         { weight: 1, run: () => createUser(params) },
         { weight: 1, run: () => uploadVideo(params) },
-        { weight: 52, run: () => watchVideo(paramsWithVideoSelection(params)) },
-        { weight: 5, run: () => addComment(paramsWithVideoSelection(params)) },
+        { weight: 52, run: () => watchVideo(params) },
+        { weight: 5, run: () => addComment(params) },
     ];
     const totalWeight = actions.reduce((total, action) => total + action.weight, 0);
     let cursor = Math.random() * totalWeight;
@@ -552,7 +533,6 @@ export default {
     loadSeedManifest,
     seededUserIdForVu,
     pickSeedVideoSelection,
-    pickSeededVideoSelection,
     pickRandomUploadedVideoSelection,
     openMainPage,
     openUserPage,

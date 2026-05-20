@@ -36,10 +36,7 @@ export const options = {
 };
 
 export function runAction() {
-    actions.selectAction({
-        userId: currentUserId(),
-        pickVideoSelection: () => actions.pickSeededVideoSelection(SEED_MANIFEST),
-    });
+    actions.selectAction({ userId: currentUserId() });
     sleep(1);
 }
 

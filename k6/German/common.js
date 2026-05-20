@@ -63,12 +63,6 @@ const VIDEO_POOL = [
         data: open("../videos/forty-minute.mp4", "b"),
     },
 ];
-const DURATION_BUCKETS = [
-    { durationSeconds: 60, weight: 45 },
-    { durationSeconds: 180, weight: 36 },
-    { durationSeconds: 600, weight: 16 },
-    { durationSeconds: 2400, weight: 3 },
-];
 const VIDEO_IDS_BY_DURATION = { 60: [], 180: [], 600: [], 2400: [] };
 
 const GENERATED_FRAME_THUMBNAIL = open("../videos/frame-thumbnail.jpg", "b");
@@ -207,13 +201,6 @@ function pickWeighted(items) {
     return items[items.length - 1];
 }
 
-function resolveVideoSelection(videoId) {
-    if (videoId) {
-        return VIDEO_POOL.find((video) => video.id === videoId) || VIDEO_POOL[0];
-    }
-    return pickWeighted(VIDEO_POOL);
-}
-
 // Verified
 function registerVideoIdForDuration(videoId, durationSeconds) {
     const ids = VIDEO_IDS_BY_DURATION[String(durationSeconds)];
@@ -272,22 +259,23 @@ function loadSeedManifest(path = "./seed-manifest-german.json") {
     return manifest;
 }
 
+// Verified
 function seededUserIdForVu(seedManifest) {
     const userIds = seedManifest.userIds;
     return userIds[(__VU - 1) % userIds.length];
 }
 
-function pickSeededVideoSelection(seedManifest) {
-    const pickedDuration = pickWeighted(DURATION_BUCKETS).durationSeconds;
-    const bucketIds = (seedManifest.videosByDuration && seedManifest.videosByDuration[String(pickedDuration)]) || [];
-    const candidateIds = bucketIds.length > 0 ? bucketIds : seedManifest.videoIds;
-    const videoId = Number(candidateIds[randomInt(0, candidateIds.length - 1)]);
-    const template = selectionTemplateForDuration(pickedDuration);
-    return { ...template, id: videoId, durationSeconds: pickedDuration };
+// Verified
+function pickWeightedDurationSeconds() {
+    const probability = Math.random();
+    if (probability < 0.45) return 60;
+    if (probability < 0.81) return 180;
+    if (probability < 0.97) return 600;
+    return 2400;
 }
 
 function pickVideoSelectionByDurationMap() {
-    const pickedDuration = pickWeighted(DURATION_BUCKETS).durationSeconds;
+    const pickedDuration = pickWeightedDurationSeconds();
     const ids = VIDEO_IDS_BY_DURATION[String(pickedDuration)] || [];
     if (ids.length > 0) {
         const template = selectionTemplateForDuration(pickedDuration);
@@ -329,13 +317,6 @@ function pickRandomUploadedVideoSelection() {
         return selectionForUploadedVideo(video);
     }
     return pickWeighted(VIDEO_POOL);
-}
-
-function paramsWithVideoSelection(params) {
-    if (typeof params.pickVideoSelection === "function") {
-        return { ...params, videoSelection: params.pickVideoSelection() };
-    }
-    return { ...params, videoSelection: pickVideoSelectionByDurationMap() };
 }
 
 // Verified
@@ -560,8 +541,8 @@ function uploadVideo({
     return createdVideo;
 }
 
-// Verified
-function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), chunkSeconds = STREAM_CHUNK_SECONDS } = {}) {
+function watchVideo({ chunkSeconds = STREAM_CHUNK_SECONDS } = {}) {
+    const videoSelection = pickVideoSelectionByDurationMap();
     const [video, comments, recommended] = http.batch([
         ["GET", url(`/videos/${videoSelection.id}`), null, requestParams("watchVideo", "getVideo")],
         ["GET", url(`/videos/${videoSelection.id}/comments`), null, requestParams("watchVideo", "listComments")],
@@ -619,8 +600,8 @@ function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), 
     }
 }
 
-// Verified
-function addComment({ videoId, videoSelection = resolveVideoSelection(videoId), userId, token, content = randomString(40, 120) } = {}) {
+function addComment({ token, content = randomString(40, 120) } = {}) {
+    const videoSelection = pickVideoSelectionByDurationMap();
     const response = http.post(
         url(`/videos/${videoSelection.id}/comments`),
         JSON.stringify({ content }),
@@ -653,9 +634,9 @@ function selectAction(params = {}) {
         return uploadVideo(params);
     }
     if (probability < 0.95) {
-        return watchVideo(paramsWithVideoSelection(params));
+        return watchVideo(params);
     }
-    return addComment(paramsWithVideoSelection(params));
+    return addComment(params);
 }
 
 export default {
@@ -663,7 +644,6 @@ export default {
     loadSeedManifest,
     seededUserIdForVu,
     pickSeedVideoSelection,
-    pickSeededVideoSelection,
     pickRandomUploadedVideoSelection,
     openMainPage,
     openUserPage,
