@@ -177,20 +177,6 @@ function pickVideoTemplate() {
     return VIDEO_POOL[3];
 }
 
-function pickSeedVideoSelection(index) {
-    const totalWeight = VIDEO_POOL.reduce((total, video) => total + video.weight, 0);
-    let cursor = index % totalWeight;
-
-    for (const video of VIDEO_POOL) {
-        cursor -= video.weight;
-        if (cursor < 0) {
-            return video;
-        }
-    }
-
-    return VIDEO_POOL[VIDEO_POOL.length - 1];
-}
-
 // Verified
 function seededUserContextForVu(authTuples) {
     if (!Array.isArray(authTuples) || authTuples.length === 0) {
@@ -208,44 +194,14 @@ function pickWeightedDurationSeconds() {
     return 2400;
 }
 
+// Verified
 function pickVideoSelectionByDurationMap() {
     const pickedDuration = pickWeightedDurationSeconds();
     const videoId = repository.getRandomVideoId(pickedDuration);
-    if (videoId) {
-        return { id: videoId, durationSeconds: pickedDuration };
+    if (!videoId) {
+        throw new Error(`Repository has no videos for duration ${pickedDuration}.`);
     }
-    return pickRandomUploadedVideoSelection();
-}
-
-function selectionForUploadedVideo(video) {
-    const template = pickVideoTemplate();
-    return { id: video.id, durationSeconds: template.durationSeconds };
-}
-
-function pickRandomUploadedVideoSelection() {
-    const countResponse = http.get(
-        url("/videos?limit=1&offset=0"),
-        requestParams("selectUploadedVideo", "countVideos"),
-    );
-    const countBody = parseJson(countResponse);
-    const totalCount = countBody ? Number(countBody.total_count) : 0;
-
-    if (countResponse.status !== 200 || totalCount < 1) {
-        return pickVideoTemplate();
-    }
-
-    const offset = randomInt(0, totalCount - 1);
-    const videoResponse = http.get(
-        url(`/videos?limit=1&offset=${offset}`),
-        requestParams("selectUploadedVideo", "pickRandomVideo"),
-    );
-    const videoBody = parseJson(videoResponse);
-    const video = videoBody && Array.isArray(videoBody.items) ? videoBody.items[0] : null;
-
-    if (video && video.id) {
-        return selectionForUploadedVideo(video);
-    }
-    return pickVideoTemplate();
+    return { id: videoId, durationSeconds: pickedDuration };
 }
 
 // Verified
@@ -263,12 +219,14 @@ function selectedVideoFile(selection) {
     return http.file(selection.data, selection.filename, selection.contentType);
 }
 
+// Verified
 function checkJson(response, name, validator) {
     check(response, {
         [name]: (r) => r.status === 200 && validator(parseJson(r)),
     });
 }
 
+// Verified
 function checkStatus(response, name, expectedStatuses = [200]) {
     const statuses = Array.isArray(expectedStatuses) ? expectedStatuses : [expectedStatuses];
     check(response, {
@@ -276,18 +234,20 @@ function checkStatus(response, name, expectedStatuses = [200]) {
     });
 }
 
+// Verified
 function headerValue(headers, name) {
     const target = name.toLowerCase();
     const found = Object.keys(headers || {}).find((key) => key.toLowerCase() === target);
     return found ? String(headers[found]) : "";
 }
 
-// verified
+// Verified
 function isVideoContentType(response) {
     const contentType = headerValue(response.headers, "Content-Type").toLowerCase();
     return contentType.includes("video/") || contentType.includes("application/octet-stream");
 }
 
+// Verified
 function checkVideoChunk(response) {
     check(response, {
         "stream chunk has media status": (r) => r.status === 200 || r.status === 206 || r.status === 416,
@@ -299,6 +259,7 @@ function checkVideoChunk(response) {
     });
 }
 
+// Verified
 function getAuthToken(userId, action = "getAuthToken") {
     const response = http.post(
         url("/auth/token"),
@@ -327,6 +288,7 @@ function getVisibleUploaderAvatarUrls(videoListResponse) {
         .map((video) => video.uploader.avatar_url);
 }
 
+// Verified
 function getVisibleUserAvatarUrls(userListResponse) {
     const body = parseJson(userListResponse);
     return ((body && body.items) || [])
@@ -524,6 +486,7 @@ function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
     }
 }
 
+// Verified
 function addComment(userId, token, content = randomString(40, 120)) {
     const videoSelection = pickVideoSelectionByDurationMap();
     const response = http.post(
@@ -564,39 +527,9 @@ function selectAction(userId, token) {
     return addComment(userId, token);
 }
 
-function hydrateRepositoryFromServer() {
-    repository.resetVideos();
-    const pages = [
-        { durationSeconds: 60, q: "video-1" },
-        { durationSeconds: 180, q: "video-2" },
-        { durationSeconds: 180, q: "video-3" },
-        { durationSeconds: 600, q: "video-4" },
-        { durationSeconds: 600, q: "video-5" },
-        { durationSeconds: 2400, q: "video-6" },
-    ];
-
-    pages.forEach(({ durationSeconds, q }) => {
-        const response = http.get(
-            url(`/videos${queryString({ limit: 20, offset: 0, q })}`),
-            requestParams("repositoryHydration", "listVideos"),
-        );
-        const body = parseJson(response);
-        const items = body && Array.isArray(body.items) ? body.items : [];
-        items.forEach((video) => {
-            if (video && video.id) {
-                repository.registerVideo(video.id, durationSeconds);
-            }
-        });
-    });
-    repository.markHydrated();
-}
-
 export default {
     getAuthToken,
     seededUserContextForVu,
-    hydrateRepositoryFromServer,
-    pickSeedVideoSelection,
-    pickRandomUploadedVideoSelection,
     openMainPage,
     openUserPage,
     createUser,

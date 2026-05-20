@@ -4,12 +4,30 @@ import repository from "./repository.js";
 const USER_COUNT = 3000;
 const VIDEO_COUNT = 50;
 const COMMENT_COUNT = 1000;
-const UPLOAD_PLAN = [
-    { seedIndex: 1, count: 23 },   // 60s  (45%)
-    { seedIndex: 46, count: 18 },  // 180s (36%)
-    { seedIndex: 82, count: 8 },   // 600s (16%)
-    { seedIndex: 98, count: 1 },   // 2400s (3%)
-];
+const ONE_MINUTE = {
+    filename: "one-minute.mp4",
+    contentType: "video/mp4",
+    durationSeconds: 60,
+    data: open("../videos/one-minute.mp4", "b"),
+};
+const THREE_MINUTE = {
+    filename: "three-minute-a.mp4",
+    contentType: "video/mp4",
+    durationSeconds: 180,
+    data: open("../videos/three-minute-a.mp4", "b"),
+};
+const TEN_MINUTE = {
+    filename: "ten-minute-a.mp4",
+    contentType: "video/mp4",
+    durationSeconds: 600,
+    data: open("../videos/ten-minute-a.mp4", "b"),
+};
+const FORTY_MINUTE = {
+    filename: "forty-minute.mp4",
+    contentType: "video/mp4",
+    durationSeconds: 2400,
+    data: open("../videos/forty-minute.mp4", "b"),
+};
 
 export const options = {
     vus: 1,
@@ -44,28 +62,29 @@ export function seedData() {
 
     repository.resetVideos();
     let uploadedCount = 0;
-    UPLOAD_PLAN.forEach(({ seedIndex, count }) => {
-        for (let planIndex = 0; planIndex < count; planIndex += 1) {
-            if (uploadedCount >= VIDEO_COUNT) break;
-            const tuple = authTuples[uploadedCount % authTuples.length];
-            const userId = tuple ? tuple[0] : null;
-            const token = tuple ? tuple[1] : null;
-            if (!token) continue;
+    const uploadSeededVideo = (videoSelection) => {
+        if (uploadedCount >= VIDEO_COUNT) return;
+        const tuple = authTuples[uploadedCount % authTuples.length];
+        const userId = tuple ? tuple[0] : null;
+        const token = tuple ? tuple[1] : null;
+        if (!token) return;
 
-            const videoSelection = actions.pickSeedVideoSelection(seedIndex);
-            const video = actions.uploadVideo(
-                userId,
-                token,
-                `video-${uploadedCount + 1}`,
-                `description-${uploadedCount + 1}`,
-                videoSelection,
-            );
+        const video = actions.uploadVideo(
+            userId,
+            token,
+            `video-${uploadedCount + 1}`,
+            `description-${uploadedCount + 1}`,
+            videoSelection,
+        );
+        if (!video) return;
+        repository.registerVideo(video.id, videoSelection.durationSeconds);
+        uploadedCount += 1;
+    };
 
-            if (!video) continue;
-            repository.registerVideo(video.id, videoSelection.durationSeconds);
-            uploadedCount += 1;
-        }
-    });
+    for (let i = 0; i < 23; i += 1) uploadSeededVideo(ONE_MINUTE);
+    for (let i = 0; i < 18; i += 1) uploadSeededVideo(THREE_MINUTE);
+    for (let i = 0; i < 8; i += 1) uploadSeededVideo(TEN_MINUTE);
+    for (let i = 0; i < 1; i += 1) uploadSeededVideo(FORTY_MINUTE);
 
     if (uploadedCount === 0) {
         throw new Error("Bootstrap could not create enough videos to continue with comments.");
@@ -82,10 +101,13 @@ export function seedData() {
         if (comment) commentCount += 1;
     }
 
-    console.log(`Seeded users=${authTuples.length}, comments=${commentCount}`);
-    return authTuples;
-}
+    const seededVideosByDuration = {
+        60: [...repository.videosByDuration[60]],
+        180: [...repository.videosByDuration[180]],
+        600: [...repository.videosByDuration[600]],
+        2400: [...repository.videosByDuration[2400]],
+    };
 
-export default function bootstrap() {
-    return seedData();
+    console.log(`Seeded users=${authTuples.length}, comments=${commentCount}`);
+    return { authTuples, seededVideosByDuration };
 }

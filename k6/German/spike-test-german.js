@@ -3,6 +3,7 @@ import { Rate } from "k6/metrics";
 import { sleep } from "k6";
 import actions from "./common.js";
 import { seedData } from "./bootstrap.js";
+import repository from "./repository.js";
 
 const PROJECT = "German";
 const HEALTH_URL = "http://localhost/api/health";
@@ -43,21 +44,26 @@ export function setup() {
     return seedData();
 }
 
-function ensureVuContext(authTuples) {
+function ensureVuContext(setupData) {
     if (!repositoryInitialized) {
-        actions.hydrateRepositoryFromServer();
+        const seededVideosByDuration = setupData && setupData.seededVideosByDuration;
+        repository.resetVideos();
+        [60, 180, 600, 2400].forEach((durationSeconds) => {
+            const ids = (seededVideosByDuration && seededVideosByDuration[durationSeconds]) || [];
+            ids.forEach((videoId) => repository.registerVideo(videoId, durationSeconds));
+        });
         repositoryInitialized = true;
     }
 
     if (cachedUserId && cachedToken) return;
 
-    const tuple = actions.seededUserContextForVu(authTuples);
+    const tuple = actions.seededUserContextForVu(setupData && setupData.authTuples);
     cachedUserId = tuple[0];
     cachedToken = tuple[1];
 }
 
-export function runAction(authTuples) {
-    ensureVuContext(authTuples);
+export function runAction(setupData) {
+    ensureVuContext(setupData);
     actions.selectAction(cachedUserId, cachedToken);
     sleep(1);
 }

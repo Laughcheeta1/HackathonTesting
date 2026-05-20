@@ -1,7 +1,6 @@
 class VideoRepository {
     constructor() {
         this.videosByDuration = { 60: [], 180: [], 600: [], 2400: [] };
-        this.hydrated = false;
     }
 
     resetVideos() {
@@ -9,15 +8,6 @@ class VideoRepository {
         this.videosByDuration[180] = [];
         this.videosByDuration[600] = [];
         this.videosByDuration[2400] = [];
-        this.hydrated = false;
-    }
-
-    markHydrated() {
-        this.hydrated = true;
-    }
-
-    isHydrated() {
-        return this.hydrated;
     }
 
     registerVideo(videoId, durationSeconds) {
