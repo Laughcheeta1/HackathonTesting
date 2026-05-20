@@ -29,6 +29,11 @@ function url(path) {
     return `${BASE_URL}${path}`;
 }
 
+function assetUrl(path) {
+    if (/^https?:\/\//i.test(path)) return path;
+    return url(path);
+}
+
 function requestParams(action, endpoint, extra = {}) {
     return {
         ...extra,
@@ -255,41 +260,48 @@ function checkVideoChunk(response) {
     });
 }
 
-function getVisibleVideoIds(videoListResponse) {
+function getVisibleVideoThumbnailUrls(videoListResponse) {
     const body = parseJson(videoListResponse);
     return (Array.isArray(body) ? body : [])
         .filter((video) => video.thumbnail_url)
-        .map((video) => video.id);
+        .map((video) => video.thumbnail_url);
 }
 
-function getVisibleUploaderIds(videoListResponse) {
+function getVisibleUploaderAvatarUrls(videoListResponse) {
     const body = parseJson(videoListResponse);
     return (Array.isArray(body) ? body : [])
-        .filter((video) => video.uploader && video.uploader.id && video.uploader.avatar_url)
-        .map((video) => video.uploader.id);
+        .filter((video) => video.uploader && video.uploader.avatar_url)
+        .map((video) => video.uploader.avatar_url);
 }
 
-function getVisibleUserIds(userListResponse) {
+function getVisibleUserAvatarUrls(userListResponse) {
     const body = parseJson(userListResponse);
     return (Array.isArray(body) ? body : [])
         .filter((user) => user.avatar_url)
-        .map((user) => user.id);
+        .map((user) => user.avatar_url);
 }
 
-function requestVideoThumbnails(videoIds, action) {
-    videoIds.forEach((videoId) => {
+function getCurrentUserAvatarUrl(userListResponse, userId) {
+    const body = parseJson(userListResponse);
+    const users = Array.isArray(body) ? body : [];
+    const currentUser = users.find((user) => user.id === userId);
+    return currentUser && currentUser.avatar_url ? currentUser.avatar_url : null;
+}
+
+function requestVideoThumbnails(thumbnailUrls, action) {
+    [...new Set(thumbnailUrls)].forEach((thumbnailUrl) => {
         const response = http.get(
-            url(`/videos/${videoId}/thumbnail`),
+            assetUrl(thumbnailUrl),
             imageParams(action, "videoThumbnail"),
         );
         checkStatus(response, "thumbnail status is valid", [200, 404]);
     });
 }
 
-function requestUserAvatars(userIds, action) {
-    userIds.forEach((userId) => {
+function requestUserAvatars(avatarUrls, action) {
+    [...new Set(avatarUrls.filter(Boolean))].forEach((avatarUrl) => {
         const response = http.get(
-            url(`/users/${userId}/avatar`),
+            assetUrl(avatarUrl),
             imageParams(action, "userAvatar"),
         );
         checkStatus(response, "avatar status is valid", [200, 404]);
@@ -311,8 +323,11 @@ function openMainPage({ userId } = {}) {
     checkJson(providers, "providers response is valid", checker.checkProvidersObject);
     checkJson(subscriptions, "subscriptions response is valid", checker.checkSubscriptionsObject);
 
-    requestVideoThumbnails(getVisibleVideoIds(videos), "openMainPage");
-    requestUserAvatars(getVisibleUploaderIds(videos), "openMainPage");
+    requestVideoThumbnails(getVisibleVideoThumbnailUrls(videos), "openMainPage");
+    requestUserAvatars([
+        ...getVisibleUploaderAvatarUrls(videos),
+        getCurrentUserAvatarUrl(users, userId),
+    ], "openMainPage");
 }
 
 function openUserPage({ userId } = {}) {
@@ -326,7 +341,10 @@ function openUserPage({ userId } = {}) {
     checkJson(providers, "providers response is valid", checker.checkProvidersObject);
     checkJson(subscriptions, "subscriptions response is valid", checker.checkSubscriptionsObject);
 
-    requestUserAvatars(getVisibleUserIds(users), "openUserPage");
+    requestUserAvatars([
+        ...getVisibleUserAvatarUrls(users),
+        getCurrentUserAvatarUrl(users, userId),
+    ], "openUserPage");
 }
 
 function createUser({
@@ -401,7 +419,7 @@ function watchVideo({ videoId, videoSelection = resolveVideoSelection(videoId), 
     checkJson(comments, "watch comments response is valid", checker.checkCommentArrayResponse);
     checkJson(recommended, "recommended videos response is valid", checker.checkVideoArrayResponse);
 
-    requestVideoThumbnails(getVisibleVideoIds(recommended), "watchVideo");
+    requestVideoThumbnails(getVisibleVideoThumbnailUrls(recommended), "watchVideo");
 
     const chunkCount = Math.max(1, Math.ceil(videoSelection.durationSeconds / chunkSeconds));
     const startedAt = Date.now();
