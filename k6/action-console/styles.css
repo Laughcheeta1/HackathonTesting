@@ -148,7 +148,7 @@ select {
 
 .memory-stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -168,6 +168,21 @@ select {
 
 .memory-stats strong {
     font-size: 1rem;
+}
+
+.memory-chart-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border: 1px solid var(--line);
+    background: #101816;
+    scrollbar-color: rgba(22, 33, 29, 0.55) rgba(22, 33, 29, 0.1);
+}
+
+#memoryChart {
+    display: block;
+    width: 1800px;
+    height: 220px;
 }
 
 button {

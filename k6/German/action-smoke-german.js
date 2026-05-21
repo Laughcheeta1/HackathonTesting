@@ -19,7 +19,7 @@ export function setup() {
 function hydrateRepository(setupData) {
     const seededVideosByDuration = setupData && setupData.seededVideosByDuration;
     repository.resetVideos();
-    [60, 180].forEach((durationSeconds) => {
+    [60].forEach((durationSeconds) => {
         const ids = (seededVideosByDuration && seededVideosByDuration[durationSeconds]) || [];
         ids.forEach((videoId) => repository.registerVideo(videoId, durationSeconds));
     });

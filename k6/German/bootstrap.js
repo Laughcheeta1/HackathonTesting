@@ -6,7 +6,6 @@ const USER_COUNT = 3000;
 const VIDEO_COUNT = 30;
 const COMMENT_COUNT = 1000;
 const ONE_MINUTE = VIDEO_POOL[0];
-const THREE_MINUTE = VIDEO_POOL[1];
 
 function logProgress(label, count, total, step = 100) {
     if (count === 0 || count === total || count % step === 0) {
@@ -92,8 +91,7 @@ export function seedData() {
     };
 
     // Hardcoded distribution (30 total) matching the target duration weights.
-    for (let i = 0; i < 18; i += 1) uploadSeededVideo(ONE_MINUTE);
-    for (let i = 0; i < 12; i += 1) uploadSeededVideo(THREE_MINUTE);
+    for (let i = 0; i < 30; i += 1) uploadSeededVideo(ONE_MINUTE);
 
     if (uploadedCount === 0) {
         throw new Error("Bootstrap could not create enough videos to continue with comments.");
@@ -123,7 +121,6 @@ export function seedData() {
     //    - seeded video IDs per duration bucket for repository hydration
     const seededVideosByDuration = {
         60: [...repository.videosByDuration[60]],
-        180: [...repository.videosByDuration[180]],
     };
 
     console.log(
