@@ -40,6 +40,8 @@ export const options = {
 };
 
 export function seedData() {
+    // 1) Seed users first, because all subsequent actions (JWT, uploads, comments)
+    // depend on having valid user identities.
     const userIds = [];
     const authTuples = [];
 
@@ -53,6 +55,7 @@ export function seedData() {
         throw new Error("Bootstrap could not create users.");
     }
 
+    // 2) Resolve JWT token per seeded user (German project uses authenticated endpoints).
     for (const userId of userIds) {
         const token = actions.getAuthToken(userId, "bootstrap");
         if (token) {
@@ -60,10 +63,12 @@ export function seedData() {
         }
     }
 
+    // 3) Build the deterministic initial video corpus and register IDs by duration.
     repository.resetVideos();
     let uploadedCount = 0;
     const uploadSeededVideo = (videoSelection) => {
         if (uploadedCount >= VIDEO_COUNT) return;
+        // Spread uploads over the seeded identities to avoid a single-uploader bias.
         const tuple = authTuples[uploadedCount % authTuples.length];
         const userId = tuple ? tuple[0] : null;
         const token = tuple ? tuple[1] : null;
@@ -77,10 +82,12 @@ export function seedData() {
             videoSelection,
         );
         if (!video) return;
+        // Repository is the source for runtime random watch/comment video selection.
         repository.registerVideo(video.id, videoSelection.durationSeconds);
         uploadedCount += 1;
     };
 
+    // Hardcoded distribution (50 total) matching the target duration weights.
     for (let i = 0; i < 23; i += 1) uploadSeededVideo(ONE_MINUTE);
     for (let i = 0; i < 18; i += 1) uploadSeededVideo(THREE_MINUTE);
     for (let i = 0; i < 8; i += 1) uploadSeededVideo(TEN_MINUTE);
@@ -90,6 +97,7 @@ export function seedData() {
         throw new Error("Bootstrap could not create enough videos to continue with comments.");
     }
 
+    // 4) Seed comment load after videos exist; rotate through seeded users.
     let commentCount = 0;
     for (let index = 1; index <= COMMENT_COUNT; index += 1) {
         const tuple = authTuples[(index - 1) % authTuples.length];
@@ -101,6 +109,9 @@ export function seedData() {
         if (comment) commentCount += 1;
     }
 
+    // 5) Return setup payload consumed by each VU:
+    //    - auth tuples for identity/token assignment
+    //    - seeded video IDs per duration bucket for repository hydration
     const seededVideosByDuration = {
         60: [...repository.videosByDuration[60]],
         180: [...repository.videosByDuration[180]],
