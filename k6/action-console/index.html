@@ -53,8 +53,15 @@
                         <strong id="memoryMaxUsed">--</strong>
                     </div>
                 </div>
-                <div class="memory-chart-wrap" id="memoryChartWrap">
-                    <canvas id="memoryChart" width="1800" height="220" aria-label="WSL memory usage history"></canvas>
+                <div class="memory-chart-shell">
+                    <div class="memory-y-axis" aria-hidden="true">
+                        <span id="memoryYAxisMax">--</span>
+                        <span id="memoryYAxisMid">--</span>
+                        <span>0 B</span>
+                    </div>
+                    <div class="memory-chart-wrap" id="memoryChartWrap">
+                        <canvas id="memoryChart" width="1800" height="220" aria-label="WSL memory usage history"></canvas>
+                    </div>
                 </div>
             </section>
 

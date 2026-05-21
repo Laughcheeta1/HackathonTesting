@@ -409,10 +409,7 @@ function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
     let nextOffset = 0;
 
     for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
-        const range =
-            chunkIndex === 0
-                ? "bytes=0-"
-                : `bytes=${nextOffset}-${nextOffset + STREAM_RANGE_WINDOW_BYTES - 1}`;
+        const range = `bytes=${nextOffset}-${nextOffset + STREAM_RANGE_WINDOW_BYTES - 1}`;
 
         const stream = http.get(
             url(`/videos/${videoSelection.id}/stream`),
@@ -432,6 +429,10 @@ function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
         const rangeMatch = /^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i.exec(contentRange);
         if (rangeMatch) {
             nextOffset = Number(rangeMatch[2]) + 1;
+            const totalBytes = rangeMatch[3] === "*" ? null : Number(rangeMatch[3]);
+            if (totalBytes !== null && nextOffset >= totalBytes) {
+                break;
+            }
         } else {
             nextOffset += STREAM_RANGE_WINDOW_BYTES;
         }

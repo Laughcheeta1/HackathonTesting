@@ -176,11 +176,35 @@ select {
     font-size: 1rem;
 }
 
+.memory-chart-shell {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    border: 1px solid var(--line);
+    background: #101816;
+}
+
+.memory-y-axis {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    align-items: start;
+    padding: 15px 8px 33px 10px;
+    border-right: 1px solid rgba(216, 245, 232, 0.28);
+    color: rgba(216, 245, 232, 0.72);
+    font: 14px Cascadia Mono, Consolas, monospace;
+}
+
+.memory-y-axis span:nth-child(2) {
+    align-self: center;
+}
+
+.memory-y-axis span:last-child {
+    align-self: end;
+}
+
 .memory-chart-wrap {
     max-width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
-    border: 1px solid var(--line);
     background: #101816;
     scrollbar-color: rgba(22, 33, 29, 0.55) rgba(22, 33, 29, 0.1);
 }

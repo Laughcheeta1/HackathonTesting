@@ -9,6 +9,8 @@ const memoryMaxUsed = document.querySelector("#memoryMaxUsed");
 const memoryUpdated = document.querySelector("#memoryUpdated");
 const memoryChart = document.querySelector("#memoryChart");
 const memoryChartWrap = document.querySelector("#memoryChartWrap");
+const memoryYAxisMax = document.querySelector("#memoryYAxisMax");
+const memoryYAxisMid = document.querySelector("#memoryYAxisMid");
 const terminalBody = document.querySelector("#terminalBody");
 const output = document.querySelector("#output");
 const statusText = document.querySelector("#status");
@@ -16,12 +18,14 @@ const commandText = document.querySelector("#command");
 const buttons = [...document.querySelectorAll("button")];
 const actionButtons = buttons.filter((button) => !button.dataset.clearTerminal);
 const MAX_TERMINAL_LINES = 1000;
-const MEMORY_POLL_MS = 30000;
-const MAX_MEMORY_SAMPLES = 240;
+const MEMORY_BAR_POLL_MS = 1000;
+const MEMORY_CHART_SAMPLE_MS = 10000;
+const MAX_MEMORY_SAMPLES = 720;
 let pollTimer = null;
 let endpointCatalog = {};
 let memorySamples = [];
 let maxMemoryUsedBytes = 0;
+let lastChartSampleAt = 0;
 
 function formatBytes(bytes) {
     if (!Number.isFinite(bytes)) return "--";
@@ -35,7 +39,7 @@ function formatBytes(bytes) {
     return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-function renderMemory(snapshot) {
+function updateMemoryStats(snapshot) {
     const percent = Math.max(0, Math.min(100, snapshot.usedPercent || 0));
     maxMemoryUsedBytes = Math.max(maxMemoryUsedBytes, snapshot.usedBytes || 0);
     memoryFill.style.width = `${percent}%`;
@@ -45,11 +49,17 @@ function renderMemory(snapshot) {
     memoryPercent.textContent = `${percent.toFixed(1)}%`;
     memoryMaxUsed.textContent = formatBytes(maxMemoryUsedBytes);
     memoryUpdated.textContent = `${snapshot.source} · ${new Date(snapshot.timestamp).toLocaleTimeString()}`;
+}
+
+function appendMemoryChartSample(snapshot) {
+    const now = Date.now();
+    if (lastChartSampleAt && now - lastChartSampleAt < MEMORY_CHART_SAMPLE_MS) return;
+    lastChartSampleAt = now;
+
     memorySamples.push({
         timestamp: snapshot.timestamp,
         usedBytes: snapshot.usedBytes || 0,
         totalBytes: snapshot.totalBytes || 0,
-        usedPercent: percent,
     });
     if (memorySamples.length > MAX_MEMORY_SAMPLES) {
         memorySamples = memorySamples.slice(-MAX_MEMORY_SAMPLES);
@@ -76,24 +86,34 @@ function renderMemoryChart() {
 
     if (memorySamples.length === 0) return;
 
-    const leftPad = 44;
+    const leftPad = 16;
     const rightPad = 16;
     const topPad = 16;
     const bottomPad = 34;
     const chartWidth = width - leftPad - rightPad;
     const chartHeight = height - topPad - bottomPad;
-    const maxPercent = 100;
+    const firstTimestamp = Date.parse(memorySamples[0].timestamp);
+    const lastTimestamp = Date.parse(memorySamples[memorySamples.length - 1].timestamp);
+    const timeSpan = Math.max(1, lastTimestamp - firstTimestamp);
+    const yMaxBytes = Math.max(
+        1,
+        ...memorySamples.map((sample) => sample.totalBytes || sample.usedBytes || 0),
+    );
 
-    context.fillStyle = "rgba(216, 245, 232, 0.62)";
-    context.font = "20px Cascadia Mono, Consolas, monospace";
-    context.fillText("100%", 6, topPad + 6);
-    context.fillText("50%", 12, topPad + chartHeight / 2 + 6);
-    context.fillText("0%", 20, topPad + chartHeight + 6);
+    memoryYAxisMax.textContent = formatBytes(yMaxBytes);
+    memoryYAxisMid.textContent = formatBytes(yMaxBytes / 2);
+
+    context.strokeStyle = "rgba(216, 245, 232, 0.28)";
+    context.beginPath();
+    context.moveTo(leftPad, topPad);
+    context.lineTo(leftPad, topPad + chartHeight);
+    context.stroke();
 
     context.beginPath();
     memorySamples.forEach((sample, index) => {
-        const x = leftPad + (memorySamples.length === 1 ? chartWidth : (chartWidth * index) / (memorySamples.length - 1));
-        const y = topPad + chartHeight - (Math.min(sample.usedPercent, maxPercent) / maxPercent) * chartHeight;
+        const timestamp = Date.parse(sample.timestamp);
+        const x = leftPad + (memorySamples.length === 1 ? chartWidth : ((timestamp - firstTimestamp) / timeSpan) * chartWidth);
+        const y = topPad + chartHeight - (Math.min(sample.usedBytes, yMaxBytes) / yMaxBytes) * chartHeight;
         if (index === 0) context.moveTo(x, y);
         else context.lineTo(x, y);
     });
@@ -118,11 +138,12 @@ async function pollMemory() {
         if (!response.ok) {
             throw new Error(snapshot.error || "Could not read WSL memory.");
         }
-        renderMemory(snapshot);
+        updateMemoryStats(snapshot);
+        appendMemoryChartSample(snapshot);
     } catch (error) {
         memoryUpdated.textContent = error.message;
     } finally {
-        setTimeout(pollMemory, MEMORY_POLL_MS);
+        setTimeout(pollMemory, MEMORY_BAR_POLL_MS);
     }
 }
 
