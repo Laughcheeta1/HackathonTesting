@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>K6 Action Console</title>
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <main class="shell">
+            <section class="toolbar">
+                <div>
+                    <h1>K6 Action Console</h1>
+                    <p>Runs the real project bootstrap and common.js action functions through k6.</p>
+                </div>
+                <label>
+                    <span>Project</span>
+                    <select id="project">
+                        <option value="german">German</option>
+                        <option value="braulio">Braulio</option>
+                        <option value="cristobal">Cristobal</option>
+                    </select>
+                </label>
+            </section>
+
+            <section class="panel memory-panel">
+                <div class="memory-header">
+                    <h2>WSL Memory</h2>
+                    <span id="memoryUpdated">Waiting for data</span>
+                </div>
+                <div class="memory-meter" aria-label="WSL memory usage">
+                    <div id="memoryFill"></div>
+                </div>
+                <div class="memory-stats">
+                    <div>
+                        <span>Used</span>
+                        <strong id="memoryUsed">--</strong>
+                    </div>
+                    <div>
+                        <span>Available</span>
+                        <strong id="memoryAvailable">--</strong>
+                    </div>
+                    <div>
+                        <span>Total</span>
+                        <strong id="memoryTotal">--</strong>
+                    </div>
+                    <div>
+                        <span>Usage</span>
+                        <strong id="memoryPercent">--</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Docker State</h2>
+                <div class="button-grid compact">
+                    <button data-docker="up">Project Up From Zero</button>
+                    <button data-docker="down">Project Down And Delete</button>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Actions</h2>
+                <div class="button-grid">
+                    <button data-action="bootstrap">Run Bootstrap</button>
+                    <button data-action="openMainPage">Open Main Page</button>
+                    <button data-action="openUserPage">Open User Page</button>
+                    <button data-action="createUser">Create User</button>
+                    <button data-action="uploadVideo">Upload Video</button>
+                    <button data-action="watchVideo">Watch Video</button>
+                    <button data-action="addComment">Add Comment</button>
+                    <button data-action="selectAction">Random Select Action</button>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Endpoint Inspector</h2>
+                <div class="endpoint-row">
+                    <label>
+                        <span>Endpoint</span>
+                        <select id="endpoint"></select>
+                    </label>
+                    <button data-call-endpoint>Call Endpoint</button>
+                </div>
+            </section>
+
+            <section class="terminal">
+                <div class="terminal-header">
+                    <strong id="status">Idle</strong>
+                    <div class="terminal-meta">
+                        <span id="command"></span>
+                        <button class="clear-terminal" type="button" data-clear-terminal>Clear</button>
+                    </div>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <pre id="output">Start the matching Docker project first, then run bootstrap or an action.</pre>
+                </div>
+            </section>
+        </main>
+        <script src="app.js"></script>
+    </body>
+</html>

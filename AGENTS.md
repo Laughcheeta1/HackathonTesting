@@ -12,6 +12,9 @@
 - K6 video duration buckets are fixed to `60`, `180`, `600`, and `2400`. Do not infer alternative duration keys from API responses or create new `videosByDuration` / `VIDEO_IDS_BY_DURATION` keys dynamically.
 - Keep K6 action randomness internal to the action helpers. Do not pass video-selection callbacks or video IDs from scenario runners when the action can pick a seeded random target on its own.
 - In K6 action helpers, prefer positional parameters for core identity/auth inputs (for example `userId`, `token`) instead of loose object bags.
+- For local web consoles, terminal output must be a fixed-height scroll viewport, not normal page content that grows indefinitely.
+- Before writing lifecycle scripts for a project, read that project's README/docs/deploy scripts and use the documented startup path instead of inferring commands from Docker Compose files alone.
+- If a lifecycle up script starts services in detached mode, wait for the documented health/readiness URLs before reporting success.
 
 # CRITICAL
 NEVER RUN K6

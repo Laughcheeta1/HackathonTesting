@@ -1,0 +1,269 @@
+:root {
+    color-scheme: light;
+    --bg: #f4f0e8;
+    --ink: #16211d;
+    --muted: #667067;
+    --line: #cfc6b6;
+    --panel: #fffaf0;
+    --accent: #0f6b57;
+    --accent-strong: #0a4d3f;
+    --danger: #9f2f27;
+    --terminal: #111816;
+    --terminal-ink: #d8f5e8;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+        linear-gradient(135deg, rgba(15, 107, 87, 0.13), transparent 34%),
+        repeating-linear-gradient(90deg, rgba(22, 33, 29, 0.035) 0 1px, transparent 1px 64px),
+        var(--bg);
+    color: var(--ink);
+    font-family: "Aptos", "Segoe UI", sans-serif;
+}
+
+.shell {
+    width: min(1120px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 32px 0;
+}
+
+.toolbar {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 20px;
+}
+
+h1,
+h2,
+p {
+    margin: 0;
+}
+
+h1 {
+    font-size: clamp(2rem, 4vw, 4.5rem);
+    line-height: 0.95;
+}
+
+h2 {
+    font-size: 1.05rem;
+    margin-bottom: 14px;
+}
+
+p,
+label span,
+#command {
+    color: var(--muted);
+}
+
+label {
+    display: grid;
+    gap: 7px;
+    min-width: 220px;
+    font-weight: 700;
+}
+
+select,
+button {
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font: inherit;
+}
+
+select {
+    padding: 0 12px;
+    background: var(--panel);
+    color: var(--ink);
+}
+
+.panel,
+.terminal {
+    border: 1px solid var(--line);
+    background: rgba(255, 250, 240, 0.78);
+    padding: 18px;
+    margin-top: 14px;
+}
+
+.button-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.button-grid.compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.endpoint-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 10px;
+}
+
+.memory-panel {
+    display: grid;
+    gap: 12px;
+}
+
+.memory-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.memory-header h2 {
+    margin-bottom: 0;
+}
+
+#memoryUpdated {
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
+.memory-meter {
+    height: 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(22, 33, 29, 0.08);
+}
+
+#memoryFill {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), #e0a72e, var(--danger));
+    transition: width 180ms ease;
+}
+
+.memory-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.memory-stats div {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.32);
+}
+
+.memory-stats span {
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+}
+
+.memory-stats strong {
+    font-size: 1rem;
+}
+
+button {
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent-strong);
+    font-weight: 800;
+}
+
+button[data-docker="down"] {
+    background: var(--danger);
+    border-color: #7c221c;
+}
+
+button:disabled {
+    cursor: wait;
+    opacity: 0.62;
+}
+
+.terminal {
+    background: var(--terminal);
+    color: var(--terminal-ink);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: min(58vh, 620px);
+    min-height: 360px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.terminal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(216, 245, 232, 0.18);
+}
+
+.terminal-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+    gap: 12px;
+}
+
+#command {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clear-terminal {
+    min-height: 30px;
+    padding: 0 10px;
+    border-color: rgba(216, 245, 232, 0.35);
+    background: rgba(216, 245, 232, 0.08);
+    color: var(--terminal-ink);
+    font-size: 0.82rem;
+}
+
+.terminal-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 14px 16px;
+    scrollbar-color: rgba(216, 245, 232, 0.55) rgba(216, 245, 232, 0.08);
+}
+
+pre {
+    margin: 0;
+    min-height: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: 0.88rem/1.45 "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+@media (max-width: 720px) {
+    .toolbar {
+        display: grid;
+        align-items: stretch;
+    }
+
+    label {
+        min-width: 0;
+    }
+
+    .button-grid,
+    .button-grid.compact,
+    .endpoint-row,
+    .memory-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .memory-header {
+        display: grid;
+    }
+}
