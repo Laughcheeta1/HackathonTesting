@@ -8,7 +8,7 @@ const PROJECT = "German";
 const STREAM_CHUNK_SECONDS = 5;
 const STREAM_RANGE_WINDOW_BYTES = 1024 * 1024;
 
-const VIDEO_POOL = [
+export const VIDEO_POOL = [
     {
         id: 1,
         filename: "one-minute.mp4",

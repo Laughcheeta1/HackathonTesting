@@ -1,33 +1,19 @@
-import actions from "./common.js";
+import actions, { VIDEO_POOL } from "./common.js";
 import repository from "./repository.js";
 
 const USER_COUNT = 3000;
 const VIDEO_COUNT = 50;
 const COMMENT_COUNT = 1000;
-const ONE_MINUTE = {
-    filename: "one-minute.mp4",
-    contentType: "video/mp4",
-    durationSeconds: 60,
-    data: open("../videos/one-minute.mp4", "b"),
-};
-const THREE_MINUTE = {
-    filename: "three-minute-a.mp4",
-    contentType: "video/mp4",
-    durationSeconds: 180,
-    data: open("../videos/three-minute-a.mp4", "b"),
-};
-const TEN_MINUTE = {
-    filename: "ten-minute-a.mp4",
-    contentType: "video/mp4",
-    durationSeconds: 600,
-    data: open("../videos/ten-minute-a.mp4", "b"),
-};
-const FORTY_MINUTE = {
-    filename: "forty-minute.mp4",
-    contentType: "video/mp4",
-    durationSeconds: 2400,
-    data: open("../videos/forty-minute.mp4", "b"),
-};
+const ONE_MINUTE = VIDEO_POOL[0];
+const THREE_MINUTE = VIDEO_POOL[1];
+const TEN_MINUTE = VIDEO_POOL[2];
+const FORTY_MINUTE = VIDEO_POOL[3];
+
+function logProgress(label, count, total, step = 100) {
+    if (count === 0 || count === total || count % step === 0) {
+        console.log(`[bootstrap] ${label}: ${count}/${total}`);
+    }
+}
 
 export const options = {
     vus: 1,
@@ -40,22 +26,32 @@ export const options = {
 };
 
 export function seedData() {
+    console.log(
+        `[bootstrap] Starting seed: users=${USER_COUNT}, videos=${VIDEO_COUNT}, comments=${COMMENT_COUNT}`,
+    );
+
     const userIds = [];
     const authTuples = [];
 
+    console.log("[bootstrap] Creating users...");
+    logProgress("users created", 0, USER_COUNT);
     for (let index = 1; index <= USER_COUNT; index += 1) {
         const user = actions.createUser(`user-${index}`, "local", `user-${index}`, `user-${index}@example.test`);
         if (!user) continue;
         userIds.push(user.id);
         authTuples.push([user.id, ""]);
+        logProgress("users created", userIds.length, USER_COUNT);
     }
 
     if (userIds.length === 0) {
         throw new Error("Bootstrap could not create users.");
     }
+    console.log(`[bootstrap] Finished users: ${userIds.length}/${USER_COUNT}`);
 
     repository.resetVideos();
     let uploadedCount = 0;
+    console.log("[bootstrap] Uploading seed videos...");
+    logProgress("videos uploaded", 0, VIDEO_COUNT, 1);
     const uploadSeededVideo = (videoSelection) => {
         if (uploadedCount >= VIDEO_COUNT) return;
         const userId = userIds[uploadedCount % userIds.length];
@@ -70,6 +66,7 @@ export function seedData() {
         if (!video) return;
         repository.registerVideo(video.id, videoSelection.durationSeconds);
         uploadedCount += 1;
+        logProgress("videos uploaded", uploadedCount, VIDEO_COUNT, 1);
     };
 
     for (let i = 0; i < 23; i += 1) uploadSeededVideo(ONE_MINUTE);
@@ -80,13 +77,20 @@ export function seedData() {
     if (uploadedCount === 0) {
         throw new Error("Bootstrap could not create enough videos to continue with comments.");
     }
+    console.log(`[bootstrap] Finished seed videos: ${uploadedCount}/${VIDEO_COUNT}`);
 
     let commentCount = 0;
+    console.log("[bootstrap] Creating comments...");
+    logProgress("comments created", 0, COMMENT_COUNT);
     for (let index = 1; index <= COMMENT_COUNT; index += 1) {
         const tuple = authTuples[(index - 1) % authTuples.length];
         const comment = actions.addComment(tuple[0], tuple[1], `comment-${index}`);
-        if (comment) commentCount += 1;
+        if (comment) {
+            commentCount += 1;
+            logProgress("comments created", commentCount, COMMENT_COUNT);
+        }
     }
+    console.log(`[bootstrap] Finished comments: ${commentCount}/${COMMENT_COUNT}`);
 
     const seededVideosByDuration = {
         60: [...repository.videosByDuration[60]],
@@ -95,6 +99,8 @@ export function seedData() {
         2400: [...repository.videosByDuration[2400]],
     };
 
-    console.log(`Seeded users=${authTuples.length}, comments=${commentCount}`);
+    console.log(
+        `[bootstrap] Complete: users=${authTuples.length}, videos=${uploadedCount}, comments=${commentCount}`,
+    );
     return { authTuples, seededVideosByDuration };
 }

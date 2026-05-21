@@ -66,6 +66,46 @@ remove_known_images() {
         >/dev/null 2>&1 || true
 }
 
+explain_sudo_required() {
+    echo "German cleanup needs sudo to remove root-owned generated files."
+    echo "Grant permission from the action console, or run this in the same terminal before cleanup:"
+    echo "  sudo -v"
+}
+
+empty_directory() {
+    local directory="$1"
+
+    mkdir -p "$directory"
+    if find "$directory" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null; then
+        return
+    fi
+
+    echo "Normal deletion failed for $directory; retrying with sudo..."
+    if ! sudo -n find "$directory" -mindepth 1 -maxdepth 1 -exec rm -rf {} +; then
+        explain_sudo_required
+        exit 1
+    fi
+}
+
+remove_terraform_state() {
+    if rm -f \
+        "$TERRAFORM_LOCAL_DIR"/terraform.tfstate \
+        "$TERRAFORM_LOCAL_DIR"/terraform.tfstate.backup \
+        "$TERRAFORM_LOCAL_DIR"/terraform.tfstate.*.backup \
+        2>/dev/null; then
+        return
+    fi
+
+    echo "Normal deletion failed for Terraform state; retrying with sudo..."
+    if ! sudo -n rm -f \
+        "$TERRAFORM_LOCAL_DIR"/terraform.tfstate \
+        "$TERRAFORM_LOCAL_DIR"/terraform.tfstate.backup \
+        "$TERRAFORM_LOCAL_DIR"/terraform.tfstate.*.backup; then
+        explain_sudo_required
+        exit 1
+    fi
+}
+
 cd "$PROJECT_DIR"
 ./infra/scripts/deploy.sh --profile dev --target local --hw auto --action destroy || true
 docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev down --volumes --rmi all --remove-orphans || true
@@ -74,6 +114,5 @@ remove_labeled_resources "equipogerman"
 remove_labeled_resources "EquipoGerman"
 remove_known_volumes
 remove_known_images
-mkdir -p "$UPLOAD_DIR"
-find "$UPLOAD_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-rm -f "$TERRAFORM_LOCAL_DIR"/terraform.tfstate "$TERRAFORM_LOCAL_DIR"/terraform.tfstate.backup "$TERRAFORM_LOCAL_DIR"/terraform.tfstate.*.backup
+empty_directory "$UPLOAD_DIR"
+remove_terraform_state

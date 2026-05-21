@@ -190,6 +190,10 @@ document.addEventListener("click", (event) => {
         callSelectedEndpoint().catch(showError);
     }
 
+    if (event.target.dataset.sudo !== undefined) {
+        startRun("/api/sudo", {}).catch(showError);
+    }
+
     if (action) {
         startRun("/api/run-action", { project, action }).catch(showError);
     }

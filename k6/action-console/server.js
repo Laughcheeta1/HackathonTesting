@@ -226,12 +226,15 @@ function appendFailureSummary(run, details) {
     if (details.exitCode === 126) {
         lines.push("Exit code 126 usually means a command exists but is not executable.");
     }
+    if (details.exitCode === 1 && run.command.includes("sudo -v")) {
+        lines.push("Sudo permission was not granted. Enter the password in the terminal running this server.");
+    }
 
     lines.push("---------------------------", "");
     appendRunLine(run, `${lines.join("\n")}\n`);
 }
 
-function startProcess(command, args, label) {
+function startProcess(command, args, label, options = {}) {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const run = {
         id,
@@ -246,7 +249,11 @@ function startProcess(command, args, label) {
     };
     runs.set(id, run);
 
-    const child = spawn(command, args, { cwd: ROOT, env: process.env });
+    const child = spawn(command, args, {
+        cwd: ROOT,
+        env: process.env,
+        stdio: [options.inheritStdin ? "inherit" : "ignore", "pipe", "pipe"],
+    });
     child.stdout.on("data", (chunk) => {
         run.hadOutput = true;
         appendRunLine(run, chunk.toString());
@@ -377,6 +384,15 @@ async function handleApi(request, response) {
         }
         const script = body.command === "up" ? project.upScript : project.downScript;
         const run = startProcess("bash", [script], `${project.label} ${body.command}`);
+        return sendJson(response, 202, run);
+    }
+
+    if (request.method === "POST" && request.url === "/api/sudo") {
+        const run = startProcess("sudo", ["-v"], "Grant sudo permission", { inheritStdin: true });
+        appendRunLine(
+            run,
+            "If sudo asks for a password, enter it in the terminal where this Node server is running.\n",
+        );
         return sendJson(response, 202, run);
     }
 

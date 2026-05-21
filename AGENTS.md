@@ -13,6 +13,7 @@
 - Keep K6 action randomness internal to the action helpers. Do not pass video-selection callbacks or video IDs from scenario runners when the action can pick a seeded random target on its own.
 - In K6 action helpers, prefer positional parameters for core identity/auth inputs (for example `userId`, `token`) instead of loose object bags.
 - For local web consoles, terminal output must be a fixed-height scroll viewport, not normal page content that grows indefinitely.
+- For local web consoles that launch cleanup scripts, handle sudo explicitly through a permission-grant step and non-interactive `sudo -n` retries. Do not hide password prompts inside browser flows.
 - Before writing lifecycle scripts for a project, read that project's README/docs/deploy scripts and use the documented startup path instead of inferring commands from Docker Compose files alone.
 - If a lifecycle up script starts services in detached mode, wait for the documented health/readiness URLs before reporting success.
 

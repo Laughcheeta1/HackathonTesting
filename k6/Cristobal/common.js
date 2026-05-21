@@ -8,7 +8,7 @@ const PROJECT = "Cristobal";
 const STREAM_CHUNK_SECONDS = 5;
 const STREAM_RANGE_WINDOW_BYTES = 1024 * 1024;
 
-const VIDEO_POOL = [
+export const VIDEO_POOL = [
     { id: 1, filename: "one-minute.mp4", durationSeconds: 60, weight: 45, contentType: "video/mp4", data: open("../videos/one-minute.mp4", "b") },
     { id: 2, filename: "three-minute-a.mp4", durationSeconds: 180, weight: 36, contentType: "video/mp4", data: open("../videos/three-minute-a.mp4", "b") },
     { id: 3, filename: "ten-minute-a.mp4", durationSeconds: 600, weight: 16, contentType: "video/mp4", data: open("../videos/ten-minute-a.mp4", "b") },
