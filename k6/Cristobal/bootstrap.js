@@ -2,12 +2,10 @@ import actions, { VIDEO_POOL } from "./common.js";
 import repository from "./repository.js";
 
 const USER_COUNT = 3000;
-const VIDEO_COUNT = 50;
+const VIDEO_COUNT = 30;
 const COMMENT_COUNT = 1000;
 const ONE_MINUTE = VIDEO_POOL[0];
 const THREE_MINUTE = VIDEO_POOL[1];
-const TEN_MINUTE = VIDEO_POOL[2];
-const FORTY_MINUTE = VIDEO_POOL[3];
 
 function logProgress(label, count, total, step = 100) {
     if (count === 0 || count === total || count % step === 0) {
@@ -69,10 +67,8 @@ export function seedData() {
         logProgress("videos uploaded", uploadedCount, VIDEO_COUNT, 1);
     };
 
-    for (let i = 0; i < 23; i += 1) uploadSeededVideo(ONE_MINUTE);
-    for (let i = 0; i < 18; i += 1) uploadSeededVideo(THREE_MINUTE);
-    for (let i = 0; i < 8; i += 1) uploadSeededVideo(TEN_MINUTE);
-    for (let i = 0; i < 1; i += 1) uploadSeededVideo(FORTY_MINUTE);
+    for (let i = 0; i < 18; i += 1) uploadSeededVideo(ONE_MINUTE);
+    for (let i = 0; i < 12; i += 1) uploadSeededVideo(THREE_MINUTE);
 
     if (uploadedCount === 0) {
         throw new Error("Bootstrap could not create enough videos to continue with comments.");
@@ -95,8 +91,6 @@ export function seedData() {
     const seededVideosByDuration = {
         60: [...repository.videosByDuration[60]],
         180: [...repository.videosByDuration[180]],
-        600: [...repository.videosByDuration[600]],
-        2400: [...repository.videosByDuration[2400]],
     };
 
     console.log(

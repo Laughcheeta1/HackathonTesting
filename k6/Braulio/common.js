@@ -9,10 +9,8 @@ const STREAM_CHUNK_SECONDS = 5;
 const STREAM_RANGE_WINDOW_BYTES = 1024 * 1024;
 
 export const VIDEO_POOL = [
-    { id: 1, filename: "one-minute.mp4", durationSeconds: 60, weight: 45, contentType: "video/mp4", data: open("../videos/one-minute.mp4", "b") },
-    { id: 2, filename: "three-minute-a.mp4", durationSeconds: 180, weight: 36, contentType: "video/mp4", data: open("../videos/three-minute-a.mp4", "b") },
-    { id: 3, filename: "ten-minute-a.mp4", durationSeconds: 600, weight: 16, contentType: "video/mp4", data: open("../videos/ten-minute-a.mp4", "b") },
-    { id: 4, filename: "forty-minute.mp4", durationSeconds: 2400, weight: 3, contentType: "video/mp4", data: open("../videos/forty-minute.mp4", "b") },
+    { id: 1, filename: "one-minute.mp4", durationSeconds: 60, weight: 60, contentType: "video/mp4", data: open("../videos/one-minute.mp4", "b") },
+    { id: 2, filename: "three-minute-a.mp4", durationSeconds: 180, weight: 40, contentType: "video/mp4", data: open("../videos/three-minute-a.mp4", "b") },
 ];
 const GENERATED_FRAME_THUMBNAIL = open("../videos/frame-thumbnail.jpg", "b");
 
@@ -113,10 +111,8 @@ function randomName() {
 
 function pickVideoTemplate() {
     const probability = Math.random();
-    if (probability < 0.45) return VIDEO_POOL[0];
-    if (probability < 0.81) return VIDEO_POOL[1];
-    if (probability < 0.97) return VIDEO_POOL[2];
-    return VIDEO_POOL[3];
+    if (probability < 0.60) return VIDEO_POOL[0];
+    return VIDEO_POOL[1];
 }
 
 function seededUserContextForVu(authTuples) {
@@ -128,10 +124,8 @@ function seededUserContextForVu(authTuples) {
 
 function pickWeightedDurationSeconds() {
     const probability = Math.random();
-    if (probability < 0.45) return 60;
-    if (probability < 0.81) return 180;
-    if (probability < 0.97) return 600;
-    return 2400;
+    if (probability < 0.60) return 60;
+    return 180;
 }
 
 function pickVideoSelectionByDurationMap() {
@@ -426,7 +420,7 @@ function selectAction(userId, token) {
     if (probability < 0.42) {
         return createUser();
     }
-    if (probability < 0.43) {
+    if (probability < 0.421) {
         return uploadVideo(userId, token);
     }
     if (probability < 0.95) {
