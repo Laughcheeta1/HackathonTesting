@@ -6,7 +6,7 @@ import { seedData } from "./bootstrap.js";
 import repository from "./repository.js";
 
 const PROJECT = "Braulio";
-const HEALTH_URL = "http://localhost/api/health";
+const HEALTH_URL = "http://localhost:80/api/health";
 let repositoryInitialized = false;
 let cachedUserId;
 let cachedToken;

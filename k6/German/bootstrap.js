@@ -1,5 +1,6 @@
 import actions from "./common.js";
 import repository from "./repository.js";
+import http from "k6/http";
 
 const USER_COUNT = 3000;
 const VIDEO_COUNT = 50;
@@ -28,6 +29,10 @@ const FORTY_MINUTE = {
     durationSeconds: 2400,
     data: open("../videos/forty-minute.mp4", "b"),
 };
+
+function asMultipartVideoFile(videoSelection) {
+    return http.file(videoSelection.data, videoSelection.filename, videoSelection.contentType);
+}
 
 export const options = {
     vus: 1,
@@ -79,7 +84,7 @@ export function seedData() {
             token,
             `video-${uploadedCount + 1}`,
             `description-${uploadedCount + 1}`,
-            videoSelection,
+            asMultipartVideoFile(videoSelection),
         );
         if (!video) return;
         // Repository is the source for runtime random watch/comment video selection.

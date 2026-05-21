@@ -3,7 +3,7 @@ import { check, sleep } from "k6";
 import checker from "./utils.js";
 import repository from "./repository.js";
 
-const BASE_URL = "http://localhost/api";
+const BASE_URL = "http://localhost:80/api";
 const PROJECT = "Braulio";
 const STREAM_CHUNK_SECONDS = 5;
 const STREAM_RANGE_WINDOW_BYTES = 1024 * 1024;
