@@ -12,6 +12,12 @@ const PROJECTS = {
         label: "German",
         apiBase: "http://localhost:80/api",
         smokeScript: "k6/German/action-smoke-german.js",
+        tests: {
+            load: "k6/German/load-test-german.js",
+            stress: "k6/German/stress-test-german.js",
+            spike: "k6/German/spike-test-german.js",
+            soak: "k6/German/soak-test-german.js",
+        },
         upScript: "scripts/german-up.sh",
         downScript: "scripts/german-down.sh",
     },
@@ -19,6 +25,12 @@ const PROJECTS = {
         label: "Braulio",
         apiBase: "http://localhost:80/api",
         smokeScript: "k6/Braulio/action-smoke-braulio.js",
+        tests: {
+            load: "k6/Braulio/load-test-braulio.js",
+            stress: "k6/Braulio/stress-test-braulio.js",
+            spike: "k6/Braulio/spike-test-braulio.js",
+            soak: "k6/Braulio/soak-test-braulio.js",
+        },
         upScript: "scripts/braulio-up.sh",
         downScript: "scripts/braulio-down.sh",
     },
@@ -26,10 +38,17 @@ const PROJECTS = {
         label: "Cristobal",
         apiBase: "http://localhost:8000",
         smokeScript: "k6/Cristobal/action-smoke-cristobal.js",
+        tests: {
+            load: "k6/Cristobal/load-test-cristobal.js",
+            stress: "k6/Cristobal/stress-test-cristobal.js",
+            spike: "k6/Cristobal/spike-test-cristobal.js",
+            soak: "k6/Cristobal/soak-test-cristobal.js",
+        },
         upScript: "scripts/cristobal-up.sh",
         downScript: "scripts/cristobal-down.sh",
     },
 };
+const TEST_TYPES = new Set(["load", "stress", "spike", "soak"]);
 const ENDPOINTS = {
     german: [
         { id: "health", label: "GET /health", method: "GET", path: "/health" },
@@ -368,10 +387,27 @@ async function handleApi(request, response) {
         if (!project || !ACTIONS.has(body.action)) {
             return sendJson(response, 400, { error: "Unknown project or action." });
         }
+        if (body.project === "german" && body.action === "watchVideo") {
+            return sendJson(response, 400, { error: "German watchVideo is disabled because the video reproductor is not working." });
+        }
         const run = startProcess(
             "k6",
             ["run", "-e", `ACTION=${body.action}`, project.smokeScript],
             `${project.label} ${body.action}`,
+        );
+        return sendJson(response, 202, run);
+    }
+
+    if (request.method === "POST" && request.url === "/api/run-test") {
+        const body = await readBody(request);
+        const project = PROJECTS[body.project];
+        if (!project || !TEST_TYPES.has(body.testType)) {
+            return sendJson(response, 400, { error: "Unknown project or test type." });
+        }
+        const run = startProcess(
+            "k6",
+            ["run", project.tests[body.testType]],
+            `${project.label} ${body.testType} test`,
         );
         return sendJson(response, 202, run);
     }

@@ -1,3 +1,4 @@
+import http from "k6/http";
 import actions from "./common.js";
 import { seedData } from "./bootstrap.js";
 import repository from "./repository.js";
@@ -12,37 +13,77 @@ export const options = {
     },
 };
 
-export function setup() {
-    return seedData();
+function parseJson(response) {
+    try {
+        return response.json();
+    } catch (error) {
+        return null;
+    }
 }
 
-function hydrateRepository(setupData) {
-    const seededVideosByDuration = setupData && setupData.seededVideosByDuration;
-    repository.resetVideos();
-    [60, 180].forEach((durationSeconds) => {
-        const ids = (seededVideosByDuration && seededVideosByDuration[durationSeconds]) || [];
-        ids.forEach((videoId) => repository.registerVideo(videoId, durationSeconds));
+function listItems(response) {
+    const body = parseJson(response);
+    if (Array.isArray(body)) return body;
+    if (body && Array.isArray(body.items)) return body.items;
+    return [];
+}
+
+function firstExistingUserId() {
+    const response = http.get("http://localhost:80/api/users", {
+        tags: { project: "Braulio", action: "smokeSetup", endpoint: "listUsers" },
     });
+    const user = listItems(response)[0];
+    return user ? user.id : null;
 }
 
-function userContext(setupData) {
-    const tuple = actions.seededUserContextForVu(setupData && setupData.authTuples);
-    return { userId: tuple[0], token: tuple[1] };
+function smokeUserContext() {
+    let userId = firstExistingUserId();
+    if (!userId) {
+        const user = actions.createUser();
+        userId = user && user.id;
+    }
+    if (!userId) throw new Error("Smoke action could not resolve or create a user.");
+    return { userId, token: "" };
 }
 
-export default function runSelectedAction(setupData) {
+function hydrateRepositoryFromExistingVideos() {
+    repository.resetVideos();
+    const response = http.get("http://localhost:80/api/videos?offset=0&limit=100", {
+        tags: { project: "Braulio", action: "smokeSetup", endpoint: "listVideos" },
+    });
+    listItems(response).forEach((video) => {
+        repository.registerVideo(video.id, 60);
+        repository.registerVideo(video.id, 180);
+    });
+
+    if (!repository.getRandomVideoId(60) || !repository.getRandomVideoId(180)) {
+        throw new Error("Smoke action needs existing videos. Run Bootstrap or Upload Video first.");
+    }
+}
+
+export default function runSelectedAction() {
     const action = __ENV.ACTION || "selectAction";
-    hydrateRepository(setupData);
-    const { userId, token } = userContext(setupData);
 
-    if (action === "bootstrap") return;
+    if (action === "bootstrap") return seedData();
+    if (action === "createUser") return actions.createUser();
+
+    if (action === "watchVideo") {
+        hydrateRepositoryFromExistingVideos();
+        return actions.watchVideo();
+    }
+
+    const { userId, token } = smokeUserContext();
     if (action === "openMainPage") return actions.openMainPage(userId);
     if (action === "openUserPage") return actions.openUserPage(userId);
-    if (action === "createUser") return actions.createUser();
     if (action === "uploadVideo") return actions.uploadVideo(userId, token);
-    if (action === "watchVideo") return actions.watchVideo();
-    if (action === "addComment") return actions.addComment(userId, token);
-    if (action === "selectAction") return actions.selectAction(userId, token);
+    if (action === "addComment") {
+        hydrateRepositoryFromExistingVideos();
+        return actions.addComment(userId, token);
+    }
+    if (action === "selectAction") {
+        hydrateRepositoryFromExistingVideos();
+        return actions.selectAction(userId, token);
+    }
 
     throw new Error(`Unknown Braulio smoke action: ${action}`);
 }

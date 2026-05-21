@@ -11,7 +11,7 @@
             <section class="toolbar">
                 <div>
                     <h1>K6 Action Console</h1>
-                    <p>Runs the real project bootstrap and common.js action functions through k6.</p>
+                    <p>Runs full k6 tests or one common.js action probe against the selected project.</p>
                 </div>
                 <label>
                     <span>Project</span>
@@ -69,6 +69,7 @@
 
             <section class="panel">
                 <h2>Actions</h2>
+                <p class="panel-note">Only Run Bootstrap seeds the full dataset. The other buttons run one action without k6 setup().</p>
                 <div class="button-grid">
                     <button data-action="bootstrap">Run Bootstrap</button>
                     <button data-action="openMainPage">Open Main Page</button>
@@ -78,6 +79,17 @@
                     <button data-action="watchVideo">Watch Video</button>
                     <button data-action="addComment">Add Comment</button>
                     <button data-action="selectAction">Random Select Action</button>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Complete Tests</h2>
+                <p class="panel-note">These run the real test entrypoints, so they execute setup() and the full bootstrap process before load starts.</p>
+                <div class="button-grid compact">
+                    <button data-test="load">Run Load Test</button>
+                    <button data-test="stress">Run Stress Test</button>
+                    <button data-test="spike">Run Spike Test</button>
+                    <button data-test="soak">Run Soak Test</button>
                 </div>
             </section>
 

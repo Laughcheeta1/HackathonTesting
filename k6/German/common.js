@@ -471,20 +471,17 @@ function addComment(userId, token, content = randomString(40, 120)) {
 function selectAction(userId, token) {
     const probability = Math.random();
 
-    if (probability < 0.36) {
+    if (probability < 0.76) {
         return openMainPage(userId);
     }
-    if (probability < 0.41) {
+    if (probability < 0.87) {
         return openUserPage(userId);
     }
-    if (probability < 0.42) {
+    if (probability < 0.89) {
         return createUser();
     }
-    if (probability < 0.421) {
+    if (probability < 0.891) {
         return uploadVideo(userId, token);
-    }
-    if (probability < 0.95) {
-        return watchVideo();
     }
     return addComment(userId, token);
 }

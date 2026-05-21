@@ -14,6 +14,7 @@
 - In K6 action helpers, prefer positional parameters for core identity/auth inputs (for example `userId`, `token`) instead of loose object bags.
 - For local web consoles, terminal output must be a fixed-height scroll viewport, not normal page content that grows indefinitely.
 - For local web consoles that launch cleanup scripts, handle sudo explicitly through a permission-grant step and non-interactive `sudo -n` retries. Do not hide password prompts inside browser flows.
+- For local K6 action consoles, single-action smoke probes must not export k6 `setup()` or run the full bootstrap. Reserve full bootstrap seeding for explicit bootstrap actions and complete test entrypoints.
 - Before writing lifecycle scripts for a project, read that project's README/docs/deploy scripts and use the documented startup path instead of inferring commands from Docker Compose files alone.
 - If a lifecycle up script starts services in detached mode, wait for the documented health/readiness URLs before reporting success.
 

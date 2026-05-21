@@ -130,6 +130,7 @@ function setBusy(isBusy) {
     actionButtons.forEach((button) => {
         button.disabled = isBusy;
     });
+    if (!isBusy) renderProjectControls();
 }
 
 async function startRun(url, payload) {
@@ -174,6 +175,14 @@ function renderEndpoints() {
     );
 }
 
+function renderProjectControls() {
+    const isGerman = projectSelect.value === "german";
+    document.querySelectorAll('[data-action="watchVideo"]').forEach((button) => {
+        button.disabled = isGerman;
+        button.title = isGerman ? "Disabled for German because the video reproductor is not working." : "";
+    });
+}
+
 async function loadEndpointCatalog() {
     const response = await fetch("/api/endpoints");
     endpointCatalog = await response.json();
@@ -181,6 +190,7 @@ async function loadEndpointCatalog() {
         throw new Error(endpointCatalog.error || "Could not load endpoint catalog.");
     }
     renderEndpoints();
+    renderProjectControls();
 }
 
 function formatEndpointResult(result) {
@@ -257,6 +267,7 @@ document.addEventListener("click", (event) => {
 
     const action = event.target.dataset.action;
     const dockerCommand = event.target.dataset.docker;
+    const testType = event.target.dataset.test;
     const project = projectSelect.value;
 
     if (event.target.dataset.callEndpoint !== undefined) {
@@ -274,8 +285,15 @@ document.addEventListener("click", (event) => {
     if (dockerCommand) {
         startRun("/api/docker", { project, command: dockerCommand }).catch(showError);
     }
+
+    if (testType) {
+        startRun("/api/run-test", { project, testType }).catch(showError);
+    }
 });
 
-projectSelect.addEventListener("change", renderEndpoints);
+projectSelect.addEventListener("change", () => {
+    renderEndpoints();
+    renderProjectControls();
+});
 loadEndpointCatalog().catch(showError);
 pollMemory();
