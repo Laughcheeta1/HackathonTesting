@@ -6,6 +6,7 @@ import repository from "./repository.js";
 const BASE_URL = "http://localhost:80/api";
 const PROJECT = "German";
 const STREAM_CHUNK_SECONDS = 5;
+const STREAM_CHUNK_SLEEP_SECONDS = 0.5;
 const STREAM_RANGE_WINDOW_BYTES = 1024 * 1024;
 
 export const VIDEO_POOL = [
@@ -389,7 +390,6 @@ function uploadVideo(
     return response.status === 200 ? parseJson(response) : null;
 }
 
-// Verified
 function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
     const videoSelection = pickVideoSelectionByDurationMap();
     const [video, comments, recommended] = http.batch([
@@ -405,7 +405,6 @@ function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
     requestVideoThumbnails(getVisibleVideoThumbnailUrls(recommended), "watchVideo");
 
     const chunkCount = Math.max(1, Math.ceil(videoSelection.durationSeconds / chunkSeconds));
-    const startedAt = Date.now();
     let nextOffset = 0;
 
     for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
@@ -437,16 +436,9 @@ function watchVideo(chunkSeconds = STREAM_CHUNK_SECONDS) {
             nextOffset += STREAM_RANGE_WINDOW_BYTES;
         }
 
-        const targetElapsedSeconds = Math.min(videoSelection.durationSeconds, (chunkIndex + 1) * chunkSeconds);
-        const elapsedSeconds = (Date.now() - startedAt) / 1000;
-        if (targetElapsedSeconds > elapsedSeconds) {
-            sleep(targetElapsedSeconds - elapsedSeconds);
+        if (chunkIndex < chunkCount - 1) {
+            sleep(STREAM_CHUNK_SLEEP_SECONDS);
         }
-    }
-
-    const elapsedSeconds = (Date.now() - startedAt) / 1000;
-    if (videoSelection.durationSeconds > elapsedSeconds) {
-        sleep(videoSelection.durationSeconds - elapsedSeconds);
     }
 }
 

@@ -140,15 +140,15 @@ while true; do
     samples=$((samples + 1))
     sum_cpu="$(awk -v a="$sum_cpu" -v b="$cpu_percent" 'BEGIN { printf "%.2f", a + b }')"
     sum_mem="$(awk -v a="$sum_mem" -v b="$memory_bytes" 'BEGIN { printf "%.0f", a + b }')"
-    max_cpu="$(awk -v a="$max_cpu" -v b="$cpu_percent" 'BEGIN { printf "%.2f", b > a ? b : a }')"
-    max_mem="$(awk -v a="$max_mem" -v b="$memory_bytes" 'BEGIN { printf "%.0f", b > a ? b : a }')"
+    max_cpu="$(awk -v a="$max_cpu" -v b="$cpu_percent" 'BEGIN { printf "%.2f", (b > a ? b : a) }')"
+    max_mem="$(awk -v a="$max_mem" -v b="$memory_bytes" 'BEGIN { printf "%.0f", (b > a ? b : a) }')"
 
     if [[ "$gpu_percent" != "NA" ]]; then
         gpu_samples=$((gpu_samples + 1))
         sum_gpu="$(awk -v a="$sum_gpu" -v b="$gpu_percent" 'BEGIN { printf "%.2f", a + b }')"
         sum_gpu_mem="$(awk -v a="$sum_gpu_mem" -v b="$gpu_mem_mib" 'BEGIN { printf "%.2f", a + b }')"
-        max_gpu="$(awk -v a="$max_gpu" -v b="$gpu_percent" 'BEGIN { printf "%.2f", b > a ? b : a }')"
-        max_gpu_mem="$(awk -v a="$max_gpu_mem" -v b="$gpu_mem_mib" 'BEGIN { printf "%.2f", b > a ? b : a }')"
+        max_gpu="$(awk -v a="$max_gpu" -v b="$gpu_percent" 'BEGIN { printf "%.2f", (b > a ? b : a) }')"
+        max_gpu_mem="$(awk -v a="$max_gpu_mem" -v b="$gpu_mem_mib" 'BEGIN { printf "%.2f", (b > a ? b : a) }')"
     fi
 
     sleep "$sample_interval"

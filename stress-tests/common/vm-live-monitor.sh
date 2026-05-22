@@ -3,9 +3,24 @@ set -euo pipefail
 
 sample_interval="${METRICS_SAMPLE_INTERVAL_SECONDS:-1}"
 print_interval="${METRICS_PRINT_INTERVAL_SECONDS:-5}"
+output_csv="${1:-}"
+summary_file="${2:-}"
 last_print=0
 prev_total=""
 prev_idle=""
+samples=0
+sum_cpu="0"
+max_cpu="0"
+sum_memory_percent="0"
+max_memory_percent="0"
+sum_memory_used_bytes="0"
+max_memory_used_bytes="0"
+memory_total_bytes="0"
+
+if [[ -n "$output_csv" ]]; then
+    mkdir -p "$(dirname "$output_csv")"
+    echo "timestamp,cpu_percent,memory_percent,memory_used_bytes,memory_total_bytes,gpu_percent,gpu_memory_mib" > "$output_csv"
+fi
 
 read_cpu_totals() {
     awk '/^cpu / {
@@ -46,7 +61,7 @@ sample_cpu_percent() {
 sample_memory() {
     awk '/^MemTotal:/ { total=$2 } /^MemAvailable:/ { available=$2 } END {
         used = total - available
-        printf "%.2f,%d,%d", used * 100 / total, used * 1024, total * 1024
+        printf "%.2f,%d,%d\n", used * 100 / total, used * 1024, total * 1024
     }' /proc/meminfo
 }
 
@@ -71,12 +86,51 @@ sample_gpu() {
             }'
 }
 
-trap 'exit 0' TERM INT
+write_summary() {
+    [[ -z "$summary_file" ]] && return
+
+    local avg_cpu avg_memory_percent avg_memory_used_bytes
+    if (( samples > 0 )); then
+        avg_cpu="$(awk -v s="$sum_cpu" -v n="$samples" 'BEGIN { printf "%.2f", s / n }')"
+        avg_memory_percent="$(awk -v s="$sum_memory_percent" -v n="$samples" 'BEGIN { printf "%.2f", s / n }')"
+        avg_memory_used_bytes="$(awk -v s="$sum_memory_used_bytes" -v n="$samples" 'BEGIN { printf "%.0f", s / n }')"
+    else
+        avg_cpu="0.00"
+        avg_memory_percent="0.00"
+        avg_memory_used_bytes="0"
+    fi
+
+    cat > "$summary_file" <<SUMMARY
+samples=$samples
+avg_cpu_percent=$avg_cpu
+max_cpu_percent=$max_cpu
+avg_memory_percent=$avg_memory_percent
+max_memory_percent=$max_memory_percent
+avg_memory_used_bytes=$avg_memory_used_bytes
+max_memory_used_bytes=$max_memory_used_bytes
+memory_total_bytes=$memory_total_bytes
+SUMMARY
+}
+
+trap 'write_summary; exit 0' TERM INT
 
 while true; do
+    timestamp="$(date -Is)"
     cpu_percent="$(sample_cpu_percent)"
     IFS=',' read -r memory_percent memory_used_bytes memory_total_bytes < <(sample_memory)
     IFS=',' read -r gpu_percent gpu_memory_mib < <(sample_gpu)
+
+    if [[ -n "$output_csv" ]]; then
+        echo "$timestamp,$cpu_percent,$memory_percent,$memory_used_bytes,$memory_total_bytes,$gpu_percent,$gpu_memory_mib" >> "$output_csv"
+    fi
+
+    samples=$((samples + 1))
+    sum_cpu="$(awk -v a="$sum_cpu" -v b="$cpu_percent" 'BEGIN { printf "%.2f", a + b }')"
+    max_cpu="$(awk -v a="$max_cpu" -v b="$cpu_percent" 'BEGIN { printf "%.2f", (b > a ? b : a) }')"
+    sum_memory_percent="$(awk -v a="$sum_memory_percent" -v b="$memory_percent" 'BEGIN { printf "%.2f", a + b }')"
+    max_memory_percent="$(awk -v a="$max_memory_percent" -v b="$memory_percent" 'BEGIN { printf "%.2f", (b > a ? b : a) }')"
+    sum_memory_used_bytes="$(awk -v a="$sum_memory_used_bytes" -v b="$memory_used_bytes" 'BEGIN { printf "%.0f", a + b }')"
+    max_memory_used_bytes="$(awk -v a="$max_memory_used_bytes" -v b="$memory_used_bytes" 'BEGIN { printf "%.0f", (b > a ? b : a) }')"
 
     now="$(date +%s)"
     if (( now - last_print >= print_interval )); then

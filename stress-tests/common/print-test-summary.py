@@ -9,6 +9,7 @@ project = sys.argv[3]
 test_type = sys.argv[4]
 configured_max_users = sys.argv[5]
 exit_code = int(sys.argv[6])
+system_metrics_summary = Path(sys.argv[7]) if len(sys.argv) > 7 else None
 
 
 def metric_value(metrics, name, key, default="N/A"):
@@ -38,6 +39,7 @@ if summary_json.exists() and summary_json.stat().st_size > 0:
         metrics = {}
 
 resource = read_kv(metrics_summary)
+system_resource = read_kv(system_metrics_summary) if system_metrics_summary else {}
 checks_rate = metric_value(metrics, "checks", "rate")
 http_failed_rate = metric_value(metrics, "http_req_failed", "rate")
 iterations = metric_value(metrics, "iterations", "count")
@@ -54,6 +56,13 @@ print(f"Actions completed (iterations): {iterations}")
 print(f"HTTP requests completed: {http_reqs}")
 print(f"Check success rate: {checks_rate}")
 print(f"HTTP failure rate: {http_failed_rate}")
+print("System resources, including k6 and host load:")
+print(f"  Average CPU: {system_resource.get('avg_cpu_percent', 'N/A')}%")
+print(f"  Max CPU: {system_resource.get('max_cpu_percent', 'N/A')}%")
+print(f"  Average memory: {system_resource.get('avg_memory_percent', 'N/A')}%")
+print(f"  Max memory: {system_resource.get('max_memory_percent', 'N/A')}%")
+print(f"  Average memory used: {system_resource.get('avg_memory_used_bytes', 'N/A')} bytes")
+print(f"  Max memory used: {system_resource.get('max_memory_used_bytes', 'N/A')} bytes")
 print("Docker-only resources:")
 print(f"  Average CPU: {resource.get('avg_cpu_percent', 'N/A')}%")
 print(f"  Max CPU: {resource.get('max_cpu_percent', 'N/A')}%")

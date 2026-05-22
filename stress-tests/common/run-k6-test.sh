@@ -36,17 +36,19 @@ mkdir -p "$result_dir"
 
 metrics_csv="$result_dir/docker-metrics.csv"
 metrics_summary="$result_dir/docker-metrics-summary.env"
+system_metrics_csv="$result_dir/system-metrics.csv"
+system_metrics_summary="$result_dir/system-metrics-summary.env"
 k6_summary="$result_dir/k6-summary.json"
 k6_log="$result_dir/k6-output.log"
 
 printf 'Running %s %s test with MAX_USERS=%s\n' "$project" "$test_type" "$MAX_USERS"
 printf 'Results directory: %s\n' "$result_dir"
 printf 'Live terminal metrics show total VM usage, including k6.\n'
-printf 'Saved metrics and final resource summary are Docker-only app usage, excluding k6.\n'
+printf 'Saved Docker metrics are app usage, excluding k6. Saved system metrics include k6 and host load.\n'
 
 "$ROOT/stress-tests/common/docker-metrics-monitor.sh" "$metrics_csv" "$metrics_summary" &
 docker_monitor_pid="$!"
-"$ROOT/stress-tests/common/vm-live-monitor.sh" &
+"$ROOT/stress-tests/common/vm-live-monitor.sh" "$system_metrics_csv" "$system_metrics_summary" &
 vm_monitor_pid="$!"
 
 stop_monitors() {
@@ -66,6 +68,6 @@ stop_monitors
 trap - EXIT
 
 python3 "$ROOT/stress-tests/common/print-test-summary.py" \
-    "$k6_summary" "$metrics_summary" "$project" "$test_type" "$MAX_USERS" "$k6_exit"
+    "$k6_summary" "$metrics_summary" "$project" "$test_type" "$MAX_USERS" "$k6_exit" "$system_metrics_summary"
 
 exit "$k6_exit"
