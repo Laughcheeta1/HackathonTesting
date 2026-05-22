@@ -138,31 +138,22 @@ The stream is paced so virtual users remain watching for the expected video dura
 The upload pool uses real files under `k6/videos`:
 
 - one `~1 minute` video
-- two `~3 minute` videos
-- two `~10 minute` videos
-- one `~40 minute` video
 
-The upload probability distribution is intentionally skewed:
+The upload/watch selection is intentionally fixed:
 
-- `1 minute`: common
-- `3 minutes`: common
-- `10 minutes`: less common
-- `40 minutes`: rare
+- `1 minute`: 100%
 
 For reproduction, the scripts maintain a map:
 
 ```js
 {
-  60: [videoIds],
-  180: [videoIds],
-  600: [videoIds],
-  2400: [videoIds]
+  60: [videoIds]
 }
 ```
 
-When watching a video, K6 first chooses a duration using the same weighted probability as uploads, then randomly chooses a video ID from that duration bucket.
+When watching a video, K6 randomly chooses a video ID from the one-minute bucket.
 
-This prevents every virtual user from watching the same video and keeps watch traffic aligned with the upload distribution.
+This prevents every virtual user from watching the same video while avoiding large video files that would dominate k6 memory usage.
 
 ## Synthetic Dataset
 

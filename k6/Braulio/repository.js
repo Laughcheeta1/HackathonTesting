@@ -1,11 +1,10 @@
 class VideoRepository {
     constructor() {
-        this.videosByDuration = { 60: [], 180: [] };
+        this.videosByDuration = { 60: [] };
     }
 
     resetVideos() {
         this.videosByDuration[60] = [];
-        this.videosByDuration[180] = [];
     }
 
     registerVideo(videoId, durationSeconds) {

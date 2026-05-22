@@ -17,6 +17,7 @@
 - For local K6 action consoles, single-action smoke probes must not export k6 `setup()` or run the full bootstrap. Reserve full bootstrap seeding for explicit bootstrap actions and complete test entrypoints.
 - Before writing lifecycle scripts for a project, read that project's README/docs/deploy scripts and use the documented startup path instead of inferring commands from Docker Compose files alone.
 - If a lifecycle up script starts services in detached mode, wait for the documented health/readiness URLs before reporting success.
+- When implementing a user-specified operational workflow, account for every listed step explicitly. If a step is not implemented, state that before calling the workflow complete.
 
 # CRITICAL
 NEVER RUN K6

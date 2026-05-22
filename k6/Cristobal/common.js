@@ -9,8 +9,7 @@ const STREAM_CHUNK_SECONDS = 5;
 const STREAM_RANGE_WINDOW_BYTES = 1024 * 1024;
 
 export const VIDEO_POOL = [
-    { id: 1, filename: "one-minute.mp4", durationSeconds: 60, weight: 60, contentType: "video/mp4", data: open("../videos/one-minute.mp4", "b") },
-    { id: 2, filename: "three-minute-a.mp4", durationSeconds: 180, weight: 40, contentType: "video/mp4", data: open("../videos/three-minute-a.mp4", "b") },
+    { id: 1, filename: "one-minute.mp4", durationSeconds: 60, weight: 100, contentType: "video/mp4", data: open("../videos/one-minute.mp4", "b") },
 ];
 const GENERATED_FRAME_THUMBNAIL = open("../videos/frame-thumbnail.jpg", "b");
 
@@ -110,9 +109,7 @@ function randomName() {
 }
 
 function pickVideoTemplate() {
-    const probability = Math.random();
-    if (probability < 0.60) return VIDEO_POOL[0];
-    return VIDEO_POOL[1];
+    return VIDEO_POOL[0];
 }
 
 function seededUserContextForVu(authTuples) {
@@ -123,9 +120,7 @@ function seededUserContextForVu(authTuples) {
 }
 
 function pickWeightedDurationSeconds() {
-    const probability = Math.random();
-    if (probability < 0.60) return 60;
-    return 180;
+    return 60;
 }
 
 function pickVideoSelectionByDurationMap() {

@@ -17,6 +17,7 @@ const SPIKE_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.85));
 export const healthFailures = new Rate("health_failures");
 
 export const options = {
+    setupTimeout: "5m",
     thresholds: {
         http_req_duration: [{ threshold: "p(95)<10000", abortOnFail: true, delayAbortEval: "30s" }],
         http_req_failed: [{ threshold: "rate<0.10", abortOnFail: true, delayAbortEval: "30s" }],

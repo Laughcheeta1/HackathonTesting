@@ -3,7 +3,7 @@ import repository from "./repository.js";
 import http from "k6/http";
 
 const USER_COUNT = 3000;
-const VIDEO_COUNT = 30;
+const VIDEO_COUNT = 20;
 const COMMENT_COUNT = 1000;
 const ONE_MINUTE = VIDEO_POOL[0];
 
@@ -90,8 +90,8 @@ export function seedData() {
         logProgress("videos uploaded", uploadedCount, VIDEO_COUNT, 1);
     };
 
-    // Hardcoded distribution (30 total) matching the target duration weights.
-    for (let i = 0; i < 30; i += 1) uploadSeededVideo(ONE_MINUTE);
+    // Hardcoded distribution (20 total) matching the target duration weights.
+    for (let i = 0; i < 20; i += 1) uploadSeededVideo(ONE_MINUTE);
 
     if (uploadedCount === 0) {
         throw new Error("Bootstrap could not create enough videos to continue with comments.");

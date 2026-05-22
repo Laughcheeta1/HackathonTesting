@@ -10,6 +10,13 @@ const HEALTH_URL = "http://localhost:80/api/health";
 let repositoryInitialized = false;
 let cachedUserId;
 let cachedToken;
+const MAX_USERS = Number(__ENV.MAX_USERS) > 0 ? Number(__ENV.MAX_USERS) : 100;
+const STAGE_1_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.0125));
+const STAGE_2_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.025));
+const STAGE_3_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.0625));
+const STAGE_4_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.125));
+const STAGE_5_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.25));
+const STAGE_6_USERS = Math.max(1, Math.ceil(MAX_USERS * 0.50));
 
 export const healthFailures = new Rate("health_failures");
 
@@ -25,13 +32,13 @@ export const options = {
             executor: "ramping-vus",
             exec: "runAction",
             stages: [
-                { duration: "1m", target: 50 },
-                { duration: "2m", target: 100 },
-                { duration: "2m", target: 250 },
-                { duration: "2m", target: 500 },
-                { duration: "2m", target: 1000 },
-                { duration: "2m", target: 2000 },
-                { duration: "2m", target: 4000 },
+                { duration: "1m", target: STAGE_1_USERS },
+                { duration: "2m", target: STAGE_2_USERS },
+                { duration: "2m", target: STAGE_3_USERS },
+                { duration: "2m", target: STAGE_4_USERS },
+                { duration: "2m", target: STAGE_5_USERS },
+                { duration: "2m", target: STAGE_6_USERS },
+                { duration: "2m", target: MAX_USERS },
                 { duration: "30s", target: 0 },
             ],
             gracefulRampDown: "30s",

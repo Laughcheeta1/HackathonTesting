@@ -53,10 +53,9 @@ function hydrateRepositoryFromExistingVideos() {
     });
     listItems(response).forEach((video) => {
         repository.registerVideo(video.id, 60);
-        repository.registerVideo(video.id, 180);
     });
 
-    if (!repository.getRandomVideoId(60) || !repository.getRandomVideoId(180)) {
+    if (!repository.getRandomVideoId(60)) {
         throw new Error("Smoke action needs existing videos. Run Bootstrap or Upload Video first.");
     }
 }
