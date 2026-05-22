@@ -18,7 +18,7 @@ $SUDO apt-get update -y
 $SUDO apt-get upgrade -y
 
 echo "==> Installing base tools"
-$SUDO apt-get install -y ca-certificates curl gnupg lsb-release unzip git python3 gawk
+$SUDO apt-get install -y ca-certificates curl gnupg lsb-release unzip git python3 gawk ffmpeg acl shellcheck
 
 echo "==> Installing Docker Engine and Compose plugin"
 $SUDO install -m 0755 -d /etc/apt/keyrings
@@ -37,6 +37,9 @@ $SUDO apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plu
 $SUDO systemctl enable docker
 $SUDO systemctl start docker
 $SUDO usermod -aG docker "$TARGET_USER"
+if [[ -S /var/run/docker.sock ]]; then
+    $SUDO setfacl -m "u:${TARGET_USER}:rw" /var/run/docker.sock || true
+fi
 
 echo "==> Installing k6"
 $SUDO gpg -k >/dev/null
@@ -62,6 +65,9 @@ else
     echo "==> Root .env already exists; leaving it unchanged"
 fi
 
+echo "==> Ensuring k6 media files exist"
+"$ROOT/stress-tests/provision_media.sh"
+
 echo "==> Ensuring team repositories are at the expected commits"
 "$ROOT/stress-tests/verify_commits.sh"
 
@@ -69,7 +75,8 @@ cat <<MSG
 
 Cold setup complete.
 User '$TARGET_USER' was added to the docker group.
-Log out and back in, or run this once in the current shell before using Docker without sudo:
+Cold setup also granted this shell user access to the current Docker socket.
+If Docker is restarted later, log out and back in, or run:
   newgrp docker
 
 Root stress-test settings are available at:

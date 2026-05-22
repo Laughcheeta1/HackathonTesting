@@ -8,9 +8,9 @@ Run all commands from the repository root.
 ./cold_setup.sh
 ```
 
-Cold setup installs the required tools, creates root `.env` from `stress-tests/.env.example` when missing, and ensures each team repo is checked out to the expected commit in `stress-tests/expected-commits.env`.
+Cold setup installs the required tools, creates root `.env` from `stress-tests/.env.example` when missing, generates the required k6 media files when missing, and ensures each team repo is cloned and checked out to the expected commit in `stress-tests/expected-commits.env`.
 
-Then refresh Docker group permissions:
+Cold setup grants the current user access to the active Docker socket. If Docker is restarted later, refresh Docker group permissions:
 
 ```bash
 newgrp docker

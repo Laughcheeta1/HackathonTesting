@@ -15,6 +15,21 @@ if ! command -v "$K6_BIN" >/dev/null 2>&1; then
     exit 127
 fi
 
+if [[ ! -f "$ROOT/$script_path" ]]; then
+    echo "Error: k6 script does not exist: $ROOT/$script_path" >&2
+    exit 1
+fi
+
+if [[ ! -s "$ROOT/k6/videos/one-minute.mp4" || ! -s "$ROOT/k6/videos/frame-thumbnail.jpg" ]]; then
+    echo "Error: k6 media files are missing. Run ./cold_setup.sh to provision them." >&2
+    exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+    echo "Error: Docker is not accessible. Run ./cold_setup.sh, then retry from a Docker-enabled shell." >&2
+    exit 1
+fi
+
 run_id="$(date +%Y%m%d-%H%M%S)"
 result_dir="$ROOT/stress-tests/results/${project}-${test_type}-${run_id}"
 mkdir -p "$result_dir"

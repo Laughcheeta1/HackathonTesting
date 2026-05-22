@@ -1,5 +1,7 @@
-k6/videos
 k6/*/seed-manifest-*.json
 .env
 stress-tests/results/*
 !stress-tests/results/.gitkeep
+
+__pycache__/
+*.pyc
